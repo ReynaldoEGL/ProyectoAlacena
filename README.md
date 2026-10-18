@@ -11,11 +11,6 @@ Aplicación móvil desarrollada con **Flutter** para administrar el inventario d
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Modelo de datos](#modelo-de-datos)
 - [Reglas de negocio](#reglas-de-negocio)
-- [Instalación y ejecución](#instalación-y-ejecución)
-- [Configuración de Android y notificaciones](#configuración-de-android-y-notificaciones)
-- [Pruebas recomendadas](#pruebas-recomendadas)
-- [Solución de problemas](#solución-de-problemas)
-- [Limitaciones conocidas](#limitaciones-conocidas)
 
 ## Objetivo
 
