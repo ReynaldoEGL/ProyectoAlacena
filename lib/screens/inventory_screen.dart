@@ -200,34 +200,72 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 ),
               ],
             ),
+            
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                 child: Container(
-                  padding: const EdgeInsets.all(18),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(22),
-                    gradient: LinearGradient(colors: [Colors.green.shade900, Colors.green.shade600]),
+                    color: const Color(0xFFE4E9DA),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: const Color(0xFFD3DBC9),
+                    ),
                   ),
-                  child: Row(children: [
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Tu alacena, bajo control', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 6),
-                      Text('$alertCount artículo(s) requieren atención', style: const TextStyle(color: Colors.white)),
-                      const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white70)),
-                        onPressed: () => Navigator.pushNamed(context, '/calendar'),
-                        icon: const Icon(Icons.event_note_outlined),
-                        label: const Text('Ver calendario'),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.kitchen_outlined,
+                          size: 28,
+                          color: Color(0xFF536646),
+                        ),
                       ),
-                    ])),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.kitchen_outlined, color: Colors.white, size: 56),
-                  ]),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Resumen de la alacena',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              alertCount == 0
+                                  ? 'No hay productos que requieran atención.'
+                                  : alertCount == 1
+                                      ? '1 producto requiere atención.'
+                                      : '$alertCount productos requieren atención.',
+                            ),
+                            const SizedBox(height: 6),
+                            TextButton.icon(
+                              onPressed: () {
+                                Navigator.pushNamed(context, '/calendar');
+                              },
+                              icon: const Icon(Icons.calendar_month_outlined),
+                              label: const Text('Ver calendario'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
+
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),

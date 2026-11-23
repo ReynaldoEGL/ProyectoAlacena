@@ -42,12 +42,70 @@ class AlacenaApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
+      
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF287C57)),
-        scaffoldBackgroundColor: const Color(0xFFF7F8F5),
-        appBarTheme: const AppBarTheme(centerTitle: false, elevation: 0),
+
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF536646),
+          brightness: Brightness.light,
+        ).copyWith(
+          primary: const Color(0xFF536646),
+          secondary: const Color(0xFFB96C4B),
+          surface: const Color(0xFFFFFCF6),
+          error: const Color(0xFFB64D43),
+        ),
+
+        scaffoldBackgroundColor: const Color(0xFFF5F2E9),
+
+        appBarTheme: const AppBarTheme(
+          centerTitle: false,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          backgroundColor: Color(0xFFF5F2E9),
+          foregroundColor: Color(0xFF30372D),
+          surfaceTintColor: Colors.transparent,
+        ),
+
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 12,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(
+              color: Color(0xFFD8D8CB),
+            ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(
+              color: Color(0xFFD8D8CB),
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(
+              color: Color(0xFF536646),
+              width: 1.5,
+            ),
+          ),
+        ),
+
+        floatingActionButtonTheme:
+            const FloatingActionButtonThemeData(
+          backgroundColor: Color(0xFF536646),
+          foregroundColor: Colors.white,
+        ),
+
+        snackBarTheme: const SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+        ),
       ),
+
       routes: {
         '/': (_) => const InventoryScreen(),
         '/calendar': (_) => const CalendarScreen(),
