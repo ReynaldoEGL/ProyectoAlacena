@@ -105,7 +105,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       final ok =
           await NotificationService.instance.cancelDepletedLots(depleted);
       _message(ok
-          ? 'Consumo registrado aplicando FEFO.'
+          ? 'Consumo registrado.'
           : 'Consumo registrado. Revisa los permisos de notificaciones.');
     } catch (e) {
       _message('No se pudo registrar el consumo: $e');

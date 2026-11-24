@@ -101,7 +101,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       final ok =
           await NotificationService.instance.cancelDepletedLots(depleted);
       _message(ok
-          ? 'Consumo FEFO registrado.'
+          ? 'Consumo registrado.'
           : 'Consumo registrado, pero hay alertas que no se pudieron cancelar.');
     } catch (e) {
       _message('No se pudo consumir esa cantidad: $e');

@@ -4,6 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'components/app_navigator.dart';
 import 'database/inventory_db.dart';
+import 'database/demo_seeder.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/cart_screen.dart';
 import 'screens/catalog_screen.dart';
@@ -18,6 +19,12 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('es_MX', null);
   await InventoryDB.instance.database;
+  try {
+    final added = await DemoSeeder.insertOnce();
+    debugPrint('Productos de ejemplo nuevos: $added');
+  } catch (e) {
+    debugPrint('No se pudieron cargar los ejemplos: $e');
+  }
   await NotificationService.instance.initialize();
   runApp(const AlacenaApp());
   WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -73,8 +80,7 @@ class AlacenaApp extends StatelessWidget {
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.white,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: Color(0xFFD8D8CB)),

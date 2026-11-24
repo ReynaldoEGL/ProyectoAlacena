@@ -330,7 +330,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                               ),
                               const SizedBox(height: 8),
                               const Text(
-                                  'La imagen se copia al almacenamiento privado de la aplicación. Para que haya existencias debes abrir la ficha del artículo y registrar uno o más lotes.',
+                                  'Para que haya existencias debes abrir la ficha del artículo y registrar uno o más lotes.',
                                   textAlign: TextAlign.center),
                               const SizedBox(height: 28),
                             ]),
