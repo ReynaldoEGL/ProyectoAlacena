@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../components/app_utils.dart';
 import '../components/product_card.dart';
+import '../components/quantity_dialog.dart';
 import '../database/inventory_db.dart';
 import '../services/notification_service.dart';
 
@@ -85,38 +86,24 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Future<void> _consume(Map<String, dynamic> product) async {
-    final controller = TextEditingController(text: '1');
     final quantity = await showDialog<double>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('Consumir ${product['name']}'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(labelText: 'Cantidad (${product['unit']})'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
-          FilledButton(
-            onPressed: () {
-              final value = double.tryParse(controller.text.replaceAll(',', '.'));
-              if (value == null || value <= 0) return;
-              Navigator.pop(dialogContext, value);
-            },
-            child: const Text('Consumir'),
-          ),
-        ],
+      builder: (_) => QuantityDialog(
+        productName: product['name'].toString(),
+        unit: product['unit'].toString(),
       ),
     );
-    controller.dispose();
-    if (quantity == null) return;
+    if (!mounted || quantity == null) return;
+    final productId = (product['id'] as num).toInt();
     try {
-      await _db.consumeFefo((product['id'] as num).toInt(), quantity);
+      final depleted = await _db.consumeFefo(productId, quantity);
       await _reload();
-      _message('Consumo registrado aplicando FEFO.');
+      final ok = await NotificationService.instance.cancelDepletedLots(depleted);
+      _message(ok
+          ? 'Consumo registrado aplicando FEFO.'
+          : 'Consumo registrado. Revisa los permisos de notificaciones.');
     } catch (e) {
-      _message('No se pudo registrar el consumo. $e');
+      _message('No se pudo registrar el consumo: $e');
     }
   }
 
@@ -132,18 +119,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
         ],
       ),
     );
-    if (confirmed == true) {
-      final productId = (product['id'] as num).toInt();
-      final lots = await _db.getLots(productId);
-      // Las alarmas de productos archivados no deben seguir apareciendo.
-      for (final lot in lots) {
-        final notificationId = lot['notification_id'];
-        if (notificationId is num) {
-          await NotificationService.instance.cancel(notificationId.toInt());
-        }
-      }
+    if (confirmed != true || !mounted) return;
+    final productId = (product['id'] as num).toInt();
+    try {
       await _db.archiveProduct(productId);
       await _reload();
+      final ok = await NotificationService.instance.cancelProductLots(productId);
+      _message(ok ? 'Artículo archivado.' :
+          'Artículo archivado, pero no se pudieron cancelar todas sus alarmas.');
+    } catch (e) {
+      _message('No se pudo archivar: $e');
     }
   }
 
@@ -155,6 +140,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       body: RefreshIndicator(
         onRefresh: _reload,
         child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverAppBar(
               pinned: true,
@@ -200,7 +186,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 ),
               ],
             ),
-            
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -209,63 +194,43 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   decoration: BoxDecoration(
                     color: const Color(0xFFE4E9DA),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: const Color(0xFFD3DBC9),
+                    border: Border.all(color: const Color(0xFFD3DBC9)),
+                  ),
+                  child: Row(children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.kitchen_outlined,
+                          size: 28, color: Color(0xFF536646)),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
+                    const SizedBox(width: 12),
+                    Expanded(child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Resumen de la alacena',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 4),
+                        Text(alertCount == 0
+                            ? 'No hay productos que requieran atención.'
+                            : alertCount == 1
+                                ? '1 producto requiere atención.'
+                                : '$alertCount productos requieren atención.'),
+                        const SizedBox(height: 6),
+                        TextButton.icon(
+                          onPressed: () => Navigator.pushNamed(context, '/calendar'),
+                          icon: const Icon(Icons.calendar_month_outlined),
+                          label: const Text('Ver calendario'),
                         ),
-                        child: const Icon(
-                          Icons.kitchen_outlined,
-                          size: 28,
-                          color: Color(0xFF536646),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Resumen de la alacena',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              alertCount == 0
-                                  ? 'No hay productos que requieran atención.'
-                                  : alertCount == 1
-                                      ? '1 producto requiere atención.'
-                                      : '$alertCount productos requieren atención.',
-                            ),
-                            const SizedBox(height: 6),
-                            TextButton.icon(
-                              onPressed: () {
-                                Navigator.pushNamed(context, '/calendar');
-                              },
-                              icon: const Icon(Icons.calendar_month_outlined),
-                              label: const Text('Ver calendario'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    )),
+                  ]),
                 ),
               ),
             ),
-
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -320,7 +285,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     const SizedBox(height: 12),
                     Text(_products.isEmpty ? 'Todavía no hay artículos' : 'No hay artículos para este filtro', style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: 6),
-                    const Text('Registra un artículo y después agrega uno o varios lotes.'),
+                    Text(_products.isEmpty
+                        ? 'Registra un artículo y después agrega uno o varios lotes.'
+                        : 'Cambia el filtro o escribe otro término de búsqueda.'),
                     const SizedBox(height: 12),
                     FilledButton.icon(onPressed: () => Navigator.pushNamed(context, '/product-form').then((_) => _reload()), icon: const Icon(Icons.add), label: const Text('Agregar artículo')),
                   ]),

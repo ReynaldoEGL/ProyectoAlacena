@@ -25,6 +25,7 @@ class _LotFormScreenState extends State<LotFormScreen> {
   DateTime _purchaseDate = DateTime.now();
   List<Map<String, dynamic>> _stores = [];
   bool _loading = true;
+  String? _loadError;
   bool _saving = false;
   bool _argsLoaded = false;
   Map<String, dynamic>? _originalLot;
@@ -58,9 +59,14 @@ class _LotFormScreenState extends State<LotFormScreen> {
   }
 
   Future<void> _loadStores() async {
-    final stores = await _db.getStores();
-    if (!mounted) return;
-    setState(() { _stores = stores; _loading = false; });
+    try {
+      final stores = await _db.getStores();
+      if (!mounted) return;
+      setState(() { _stores = stores; _loading = false; _loadError = null; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _loading = false; _loadError = 'No se pudieron leer las tiendas: $e'; });
+    }
   }
 
   @override
@@ -80,27 +86,35 @@ class _LotFormScreenState extends State<LotFormScreen> {
 
   String? _validQuantity(String? value) {
     final number = double.tryParse((value ?? '').replaceAll(',', '.'));
-    if (number == null || number < 0) return 'Introduce una cantidad válida, igual o mayor que cero.';
+    if (number == null || !number.isFinite || number < 0) return 'Introduce una cantidad válida, igual o mayor que cero.';
     if (_lotId == null && number <= 0) return 'Una compra nueva debe tener cantidad mayor que cero.';
     return null;
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_productId == null || _storeId == null || !_stores.any((s) => s['id'] == _storeId)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecciona una tienda y un artículo válidos.')));
+    if (_saving || !(_formKey.currentState?.validate() ?? false)) return;
+    if (_productId == null || _storeId == null ||
+        !_stores.any((s) => s['id'] == _storeId)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona una tienda y un artículo válidos.')),
+      );
       return;
     }
     final cost = double.tryParse(_unitCost.text.replaceAll(',', '.'));
     final quantity = double.tryParse(_quantity.text.replaceAll(',', '.'));
-    if (cost == null || cost < 0 || quantity == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Revisa el costo y la cantidad.')));
+    if (cost == null || !cost.isFinite || cost < 0 ||
+        quantity == null || !quantity.isFinite || quantity < 0 ||
+        (_lotId == null && quantity <= 0)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Revisa el costo y la cantidad.')),
+      );
       return;
     }
+    FocusScope.of(context).unfocus();
     setState(() => _saving = true);
+    int savedId;
     try {
-      if (_lotId != null) await NotificationService.instance.cancel(_lotId!);
-      final savedId = await _db.saveLot(
+      savedId = await _db.saveLot(
         lotId: _lotId,
         productId: _productId!,
         quantity: quantity,
@@ -109,26 +123,31 @@ class _LotFormScreenState extends State<LotFormScreen> {
         storeId: _storeId!,
         unitCost: cost,
       );
-      final scheduled = quantity > 0 && await NotificationService.instance.scheduleExpiry(
-        lotId: savedId,
-        productName: _productName,
-        expirationDate: _expiryDate,
-      );
-      if (quantity <= 0) await NotificationService.instance.cancel(savedId);
-      await _db.setLotNotification(savedId, notificationId: savedId, scheduled: scheduled);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(_lotId == null
-            ? (scheduled ? 'Lote y compra guardados; se programó la alarma local.' : 'Lote y compra guardados. La fecha ya pasó, no se programó una alarma futura.')
-            : 'Lote actualizado y alarma revisada.'),
-      ));
-      Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo guardar el lote. Comprueba la tienda, cantidad y fechas. $e')));
-    } finally {
-      if (mounted) setState(() => _saving = false);
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('No se pudo guardar el lote: $e'),
+      ));
+      return;
     }
+
+    // La transacción SQLite ya terminó: una alarma fallida NO debe provocar
+    // que se registre otra compra si el usuario intenta guardar de nuevo.
+    String notice;
+    try {
+      final scheduled = await NotificationService.instance.reconcileLot(
+        savedId, _productName,
+      ).timeout(const Duration(seconds: 8));
+      notice = scheduled
+          ? 'Lote guardado y notificación programada.'
+          : 'Lote guardado. No hay alarma futura para esta caducidad.';
+    } catch (_) {
+      notice = 'Lote guardado correctamente, pero no se pudo programar la notificación.';
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(notice)));
+    Navigator.of(context).pop(true);
   }
 
   @override
@@ -138,6 +157,15 @@ class _LotFormScreenState extends State<LotFormScreen> {
       appBar: AppBar(title: Text(editing ? 'Editar lote' : 'Registrar compra / lote')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
+          : _loadError != null
+              ? Center(child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(_loadError!, textAlign: TextAlign.center),
+                    const SizedBox(height: 12),
+                    FilledButton(onPressed: _loadStores, child: const Text('Reintentar')),
+                  ]),
+                ))
           : _stores.isEmpty
               ? Center(child: Padding(
                   padding: const EdgeInsets.all(24),
@@ -169,11 +197,13 @@ class _LotFormScreenState extends State<LotFormScreen> {
                           const SizedBox(height: 14),
                           TextFormField(
                             controller: _unitCost,
+                            enabled: !editing,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             decoration: const InputDecoration(labelText: 'Costo por unidad (MXN) *', prefixIcon: Icon(Icons.attach_money)),
                             validator: (value) {
                               final number = double.tryParse((value ?? '').replaceAll(',', '.'));
-                              return number == null || number < 0 ? 'Introduce un costo válido.' : null;
+                              return number == null || !number.isFinite || number < 0
+                                    ? 'Introduce un costo válido.' : null;
                             },
                           ),
                           const SizedBox(height: 14),
@@ -198,7 +228,7 @@ class _LotFormScreenState extends State<LotFormScreen> {
                           ),
                           const SizedBox(height: 14),
                           DropdownButtonFormField<int>(
-                            initialValue: _storeId,
+                            value: _storeId,
                             decoration: InputDecoration(labelText: editing ? 'Tienda de la compra (no modificable)' : 'Tienda donde se compró *', prefixIcon: const Icon(Icons.storefront_outlined)),
                             items: _stores.map((store) => DropdownMenuItem<int>(value: (store['id'] as num).toInt(), child: Text(store['name'].toString()))).toList(),
                             onChanged: editing ? null : (value) => setState(() => _storeId = value),

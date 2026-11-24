@@ -23,7 +23,9 @@ int diasHasta(Object? value) {
   if (value == null) return 999999;
   final parsed = DateTime.tryParse(value.toString());
   if (parsed == null) return 999999;
-  return soloFecha(parsed).difference(soloFecha(DateTime.now())).inDays;
+  final today = DateTime.now();
+  return DateTime.utc(parsed.year, parsed.month, parsed.day)
+      .difference(DateTime.utc(today.year, today.month, today.day)).inDays;
 }
 
 String estadoProducto(Map<String, dynamic> producto) {

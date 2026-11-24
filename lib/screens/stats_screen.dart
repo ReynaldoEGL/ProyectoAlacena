@@ -15,6 +15,7 @@ class StatsScreen extends StatefulWidget {
 class _StatsScreenState extends State<StatsScreen> {
   final InventoryDB _db = InventoryDB.instance;
   bool _loading = true;
+  String? _loadError;
   List<Map<String, dynamic>> _products = [];
   List<Map<String, dynamic>> _spending = [];
   List<Map<String, dynamic>> _history = [];
@@ -26,18 +27,27 @@ class _StatsScreenState extends State<StatsScreen> {
   }
 
   Future<void> _reload() async {
-    final result = await Future.wait([
-      _db.getInventory(),
-      _db.getSpendingByStore(),
-      _db.getPurchaseHistory(),
-    ]);
-    if (!mounted) return;
-    setState(() {
-      _products = result[0];
-      _spending = result[1];
-      _history = result[2];
-      _loading = false;
-    });
+    try {
+      final result = await Future.wait([
+        _db.getInventory(),
+        _db.getSpendingByStore(),
+        _db.getPurchaseHistory(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _products = result[0];
+        _spending = result[1];
+        _history = result[2];
+        _loading = false;
+        _loadError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _loadError = 'No se pudieron cargar las estadísticas: $e';
+      });
+    }
   }
 
   @override
@@ -55,26 +65,35 @@ class _StatsScreenState extends State<StatsScreen> {
       appBar: AppBar(title: const Text('Resumen y estadísticas')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
+          : _loadError != null
+              ? Center(child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(_loadError!, textAlign: TextAlign.center),
+                    const SizedBox(height: 12),
+                    FilledButton(onPressed: _reload, child: const Text('Reintentar')),
+                  ]),
+                ))
           : RefreshIndicator(
               onRefresh: _reload,
               child: CustomScrollView(slivers: [
-                SliverToBoxAdapter(child: Padding(
+                SliverPadding(
                   padding: const EdgeInsets.all(16),
-                  child: GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 1.5,
-                    children: [
+                  sliver: SliverGrid(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: 1.5,
+                    ),
+                    delegate: SliverChildListDelegate([
                       _SummaryCard(title: 'Productos', value: '${_products.length}', icon: Icons.inventory_2_outlined, color: Colors.green.shade700),
                       _SummaryCard(title: 'Con alerta', value: '$alerts', icon: Icons.notifications_active_outlined, color: Colors.orange.shade800),
                       _SummaryCard(title: 'Caducados', value: '$expired', icon: Icons.warning_amber_outlined, color: Colors.red.shade700),
                       _SummaryCard(title: 'Sin existencia', value: '$empty', icon: Icons.remove_shopping_cart_outlined, color: Colors.deepOrange.shade700),
-                    ],
+                    ]),
                   ),
-                )),
+                ),
                 SliverToBoxAdapter(child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
                   child: Card(child: Padding(
@@ -101,60 +120,94 @@ class _StatsScreenState extends State<StatsScreen> {
                       ),
                       const SizedBox(height: 20),
                       if (_spending.isEmpty || maxSpending <= 0)
-                        const SizedBox(height: 100, child: Center(child: Text('Registra compras al crear lotes para generar la gráfica.')))
+                        const SizedBox(
+                          height: 100,
+                          child: Center(
+                            child: Text('Registra compras al crear lotes para generar la gráfica.'),
+                          ),
+                        )
                       else
                         SizedBox(
                           height: 250,
-                          child: BarChart(
-                            BarChartData(
-                              minY: 0,
-                              maxY: maxSpending * 1.25,
-                              gridData: const FlGridData(show: true, drawVerticalLine: false),
-                              borderData: FlBorderData(show: false),
-                              barGroups: List.generate(_spending.length, (index) {
-                                final amount = (_spending[index]['total'] as num).toDouble();
-                                return BarChartGroupData(x: index, barRods: [
-                                  BarChartRodData(toY: amount, width: 22, color: Colors.green.shade700, borderRadius: BorderRadius.circular(5)),
-                                ]);
-                              }),
-                              titlesData: FlTitlesData(
-                                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                leftTitles: AxisTitles(sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 48,
-                                  getTitlesWidget: (value, meta) => SideTitleWidget(
-                                  meta: meta,
-                                  child: Text(
-                                    value.toInt().toString(),
-                                    style: const TextStyle(fontSize: 10),
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: SizedBox(
+                              width: _spending.length * 72.0 < 320
+                                  ? 320
+                                  : _spending.length * 72.0,
+                              child: BarChart(
+                                BarChartData(
+                                  minY: 0,
+                                  maxY: maxSpending * 1.25,
+                                  gridData: const FlGridData(
+                                    show: true,
+                                    drawVerticalLine: false,
                                   ),
-                                ),
-                                )),
-                                bottomTitles: AxisTitles(sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 48,
-                                  getTitlesWidget: (value, meta) {
-                                    final index = value.toInt();
-                                    if (index < 0 || index >= _spending.length) return const SizedBox.shrink();
-                                    return SideTitleWidget(
-                                    meta: meta,
-                                    space: 8,
-                                    child: SizedBox(
-                                      width: 65,
-                                      child: Text(
-                                        _spending[index]['name'].toString(),
-                                        maxLines: 2,
-                                        textAlign: TextAlign.center,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 10),
+                                  borderData: FlBorderData(show: false),
+                                  barGroups: List.generate(_spending.length, (index) {
+                                    final amount = (_spending[index]['total'] as num).toDouble();
+                                    return BarChartGroupData(
+                                      x: index,
+                                      barRods: [
+                                        BarChartRodData(
+                                          toY: amount,
+                                          width: 22,
+                                          color: Colors.green.shade700,
+                                          borderRadius: BorderRadius.circular(5),
+                                        ),
+                                      ],
+                                    );
+                                  }),
+                                  titlesData: FlTitlesData(
+                                    topTitles: const AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                    rightTitles: const AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                    leftTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        reservedSize: 48,
+                                        getTitlesWidget: (value, meta) => SideTitleWidget(
+                                          meta: meta,
+                                          child: Text(
+                                            value.toInt().toString(),
+                                            style: const TextStyle(fontSize: 10),
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  );
-                                  },
-                                )),
+                                    bottomTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        reservedSize: 48,
+                                        getTitlesWidget: (value, meta) {
+                                          final index = value.toInt();
+                                          if (index < 0 || index >= _spending.length) {
+                                            return const SizedBox.shrink();
+                                          }
+                                          return SideTitleWidget(
+                                            meta: meta,
+                                            space: 8,
+                                            child: SizedBox(
+                                              width: 65,
+                                              child: Text(
+                                                _spending[index]['name'].toString(),
+                                                maxLines: 2,
+                                                textAlign: TextAlign.center,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(fontSize: 10),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  barTouchData: BarTouchData(enabled: true),
+                                ),
                               ),
-                              barTouchData: BarTouchData(enabled: true),
                             ),
                           ),
                         ),

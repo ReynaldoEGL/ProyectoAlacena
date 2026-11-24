@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../components/app_utils.dart';
+import '../components/quantity_dialog.dart';
 import '../database/inventory_db.dart';
 import '../services/notification_service.dart';
 
@@ -16,10 +17,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int? _productId;
   bool _argsLoaded = false;
   bool _loading = true;
+  String? _loadError;
   Map<String, dynamic>? _product;
   List<Map<String, dynamic>> _lots = [];
   List<Map<String, dynamic>> _stores = [];
   List<Map<String, dynamic>> _purchaseHistory = [];
+  List<Map<String, dynamic>> _adjustments = [];
 
   @override
   void didChangeDependencies() {
@@ -34,24 +37,41 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   Future<void> _reload() async {
     final id = _productId;
-    if (id == null) return;
-    setState(() => _loading = true);
-    final inventory = await _db.getInventory(activeOnly: false);
-    Map<String, dynamic>? product;
-    for (final row in inventory) {
-      if ((row['id'] as num).toInt() == id) { product = row; break; }
+    if (id == null) {
+      if (mounted) setState(() => _loading = false);
+      return;
     }
-    final lots = await _db.getLots(id);
-    final stores = await _db.getStoresForProduct(id);
-    final history = await _db.getPurchaseHistory(productId: id);
-    if (!mounted) return;
-    setState(() {
-      _product = product;
-      _lots = lots;
-      _stores = stores;
-      _purchaseHistory = history;
-      _loading = false;
-    });
+    if (mounted) setState(() => _loading = true);
+    try {
+      final inventory = await _db.getInventory(activeOnly: false);
+      Map<String, dynamic>? product;
+      for (final row in inventory) {
+        if ((row['id'] as num).toInt() == id) {
+          product = row;
+          break;
+        }
+      }
+      final lots = await _db.getLots(id);
+      final stores = await _db.getStoresForProduct(id);
+      final history = await _db.getPurchaseHistory(productId: id);
+      final adjustments = await _db.getStockAdjustments(id);
+      if (!mounted) return;
+      setState(() {
+        _product = product;
+        _lots = lots;
+        _stores = stores;
+        _purchaseHistory = history;
+        _adjustments = adjustments;
+        _loading = false;
+        _loadError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _loadError = 'No se pudo cargar el artículo: $e';
+      });
+    }
   }
 
   Future<void> _addLot({Map<String, dynamic>? lot}) async {
@@ -66,30 +86,24 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   Future<void> _consume() async {
-    if (_product == null) return;
-    final controller = TextEditingController(text: '1');
+    if (_product == null || _productId == null) return;
     final quantity = await showDialog<double>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Registrar consumo FEFO'),
-        content: TextField(controller: controller, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: 'Cantidad (${_product!['unit']})')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
-          FilledButton(onPressed: () {
-            final q = double.tryParse(controller.text.replaceAll(',', '.'));
-            if (q != null && q > 0) Navigator.pop(dialogContext, q);
-          }, child: const Text('Registrar')),
-        ],
+      builder: (_) => QuantityDialog(
+        productName: _product!['name'].toString(),
+        unit: _product!['unit'].toString(),
       ),
     );
-    controller.dispose();
-    if (quantity == null) return;
+    if (!mounted || quantity == null) return;
     try {
-      await _db.consumeFefo(_productId!, quantity);
+      final depleted = await _db.consumeFefo(_productId!, quantity);
       await _reload();
-      _message('Consumo registrado. Se descontó primero el lote con caducidad más próxima.');
+      final ok = await NotificationService.instance.cancelDepletedLots(depleted);
+      _message(ok
+          ? 'Consumo FEFO registrado.'
+          : 'Consumo registrado, pero hay alertas que no se pudieron cancelar.');
     } catch (e) {
-      _message('No se pudo consumir esa cantidad. $e');
+      _message('No se pudo consumir esa cantidad: $e');
     }
   }
 
@@ -106,11 +120,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ],
       ),
     );
-    if (confirmed != true) return;
-    final notifId = lot['notification_id'];
-    if (notifId is num) await NotificationService.instance.cancel(notifId.toInt());
-    await _db.deleteLot(id);
-    await _reload();
+    if (!mounted || confirmed != true) return;
+    try {
+      await _db.deleteLot(id);
+      await _reload();
+      try {
+        await NotificationService.instance.cancel(id);
+        _message('Lote eliminado; se conserva el historial de compra.');
+      } catch (_) {
+        _message('Lote eliminado, pero no se pudo cancelar su notificación.');
+      }
+    } catch (e) {
+      _message('No se pudo eliminar el lote: $e');
+    }
   }
 
   void _message(String message) {
@@ -122,10 +144,22 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Widget build(BuildContext context) {
     final product = _product;
     if (_loading) return Scaffold(appBar: AppBar(), body: const Center(child: CircularProgressIndicator()));
+    if (_loadError != null) return Scaffold(
+      appBar: AppBar(title: const Text('Artículo')),
+      body: Center(child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(_loadError!, textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+          FilledButton(onPressed: _reload, child: const Text('Reintentar')),
+        ]),
+      )),
+    );
     if (product == null) return Scaffold(appBar: AppBar(title: const Text('Artículo')), body: const Center(child: Text('No se encontró el artículo.')));
     final status = estadoProducto(product);
     final stock = (product['stock_total'] as num).toDouble();
     final unit = product['unit']?.toString() ?? 'pieza';
+    final available = (product['stock_available'] as num?)?.toDouble() ?? stock;
     return Scaffold(
       body: CustomScrollView(slivers: [
         SliverAppBar(
@@ -153,6 +187,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               const SizedBox(height: 12),
               Wrap(spacing: 8, runSpacing: 8, children: [
                 Chip(avatar: const Icon(Icons.inventory_2_outlined), label: Text('Stock: ${stock.toStringAsFixed(stock % 1 == 0 ? 0 : 2)} $unit')),
+                if (available < stock)
+                  Chip(avatar: const Icon(Icons.check_circle_outline),
+                    label: Text('Vigente: ${available.toStringAsFixed(available % 1 == 0 ? 0 : 2)} $unit')),
                 Chip(avatar: Icon(iconoEstado(status), color: colorEstado(status)), label: Text(status), side: BorderSide(color: colorEstado(status))),
                 Chip(avatar: const Icon(Icons.notifications_active_outlined), label: Text('${product['expiry_alert_days']} días de anticipación')),
               ]),
@@ -216,6 +253,31 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               subtitle: Text('${purchase['store_name']} · ${fechaTexto(purchase['purchased_at'])}'),
             );
           }, childCount: _purchaseHistory.length)),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 4),
+            child: Text('Ajustes de inventario',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+          ),
+        ),
+        if (_adjustments.isEmpty)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Text('No hay correcciones manuales registradas.'),
+            ),
+          )
+        else
+          SliverList(delegate: SliverChildBuilderDelegate((context, index) {
+            final adj = _adjustments[index];
+            final oldQty = (adj['quantity_before'] as num).toDouble();
+            final newQty = (adj['quantity_after'] as num).toDouble();
+            return ListTile(
+              leading: const Icon(Icons.edit_note_outlined),
+              title: Text('De ${oldQty.toStringAsFixed(2)} a ${newQty.toStringAsFixed(2)} $unit'),
+              subtitle: Text('${adj['reason']} · ${fechaTexto(adj['adjusted_at'])}'),
+            );
+          }, childCount: _adjustments.length)),
         const SliverToBoxAdapter(child: SizedBox(height: 36)),
       ]),
     );

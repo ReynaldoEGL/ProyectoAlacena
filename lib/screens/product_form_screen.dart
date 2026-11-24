@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -25,9 +26,12 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   final ImagePicker _picker = ImagePicker();
 
   List<Map<String, dynamic>> _categories = [];
+  bool _loadingCategories = true;
+  String? _categoriesError;
   int? _categoryId;
   int? _productId;
   String _imagePath = '';
+  String? _stagedImagePath;
   bool _saving = false;
   bool _argumentsLoaded = false;
 
@@ -57,9 +61,21 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   }
 
   Future<void> _loadCategories() async {
-    final categories = await _db.getCategories();
-    if (!mounted) return;
-    setState(() => _categories = categories);
+    try {
+      final categories = await _db.getCategories();
+      if (!mounted) return;
+      setState(() {
+        _categories = categories;
+        _categoriesError = null;
+        _loadingCategories = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _categoriesError = 'No se pudieron leer las categorías: $e';
+        _loadingCategories = false;
+      });
+    }
   }
 
   @override
@@ -69,7 +85,16 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     _minStock.dispose();
     _expiryDays.dispose();
     _unit.dispose();
+    final staged = _stagedImagePath;
+    if (staged != null) unawaited(_deleteStagedImage(staged));
     super.dispose();
+  }
+
+  Future<void> _deleteStagedImage(String path) async {
+    try {
+      final file = File(path);
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
   }
 
   Future<void> _pickImage() async {
@@ -81,8 +106,17 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       if (!await imageDir.exists()) await imageDir.create(recursive: true);
       final filename = 'producto_${DateTime.now().microsecondsSinceEpoch}${p.extension(picked.path)}';
       final saved = await File(picked.path).copy(p.join(imageDir.path, filename));
-      if (!mounted) return;
+      if (!mounted) {
+        await saved.delete();
+        return;
+      }
+      final oldStaged = _stagedImagePath;
+      _stagedImagePath = saved.path;
       setState(() => _imagePath = saved.path);
+      if (oldStaged != null) {
+        final oldFile = File(oldStaged);
+        if (await oldFile.exists()) await oldFile.delete();
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo cargar la imagen: $e')));
@@ -97,7 +131,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     }
     setState(() => _saving = true);
     try {
-      await _db.saveProduct({
+      final changed = await _db.saveProduct({
         'name': _name.text,
         'brand': _brand.text,
         'category_id': _categoryId,
@@ -106,6 +140,10 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
         'expiry_alert_days': int.parse(_expiryDays.text),
         'image_path': _imagePath,
       }, id: _productId);
+      if (_productId != null && changed == 0) {
+        throw StateError('El artículo ya no está activo o fue eliminado.');
+      }
+      _stagedImagePath = null;
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(_productId == null ? 'Artículo guardado. Ahora registra al menos un lote para controlar existencias.' : 'Artículo actualizado.'),
@@ -123,7 +161,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
 
   String? _validNonNegative(String? value) {
     final parsed = double.tryParse((value ?? '').replaceAll(',', '.'));
-    if (parsed == null || parsed < 0) return 'Introduce un número igual o mayor que cero.';
+    if (parsed == null || !parsed.isFinite || parsed < 0) return 'Introduce un número igual o mayor que cero.';
     return null;
   }
 
@@ -132,8 +170,23 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     final editing = _productId != null;
     return Scaffold(
       appBar: AppBar(title: Text(editing ? 'Editar artículo' : 'Nuevo artículo')),
-      body: _categories.isEmpty
+      body: _loadingCategories
           ? const Center(child: CircularProgressIndicator())
+          : _categoriesError != null || _categories.isEmpty
+              ? Center(child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(_categoriesError ?? 'Primero crea una categoría.'),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: () async {
+                        await Navigator.pushNamed(context, '/catalogs');
+                        if (mounted) await _loadCategories();
+                      },
+                      child: const Text('Abrir catálogos'),
+                    ),
+                  ]),
+                ))
           : Form(
               key: _formKey,
               child: CustomScrollView(slivers: [
@@ -163,7 +216,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                       TextFormField(controller: _brand, decoration: const InputDecoration(labelText: 'Marca (opcional)', prefixIcon: Icon(Icons.sell_outlined))),
                       const SizedBox(height: 14),
                       DropdownButtonFormField<int>(
-                        initialValue: _categoryId,
+                        value: _categoryId,
                         decoration: const InputDecoration(labelText: 'Categoría *', prefixIcon: Icon(Icons.category_outlined)),
                         items: _categories.map((category) => DropdownMenuItem<int>(
                           value: (category['id'] as num).toInt(), child: Text(category['name'].toString()),
@@ -197,6 +250,9 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                         icon: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.save_outlined),
                         label: Text(_saving ? 'Guardando...' : 'Guardar artículo'),
                       ),
+                      const SizedBox(height: 8),
+                      const Text('La imagen se copia al almacenamiento privado de la aplicación. Para que haya existencias debes abrir la ficha del artículo y registrar uno o más lotes.', textAlign: TextAlign.center),
+                      const SizedBox(height: 28),
                     ]),
                   ),
                 ),

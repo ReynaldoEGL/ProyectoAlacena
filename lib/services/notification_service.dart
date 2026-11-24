@@ -3,6 +3,7 @@ import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../components/app_navigator.dart';
+import '../database/inventory_db.dart';
 
 class NotificationService {
   NotificationService._();
@@ -104,6 +105,58 @@ class NotificationService {
       payload: '${expirationDate.year.toString().padLeft(4, '0')}-${expirationDate.month.toString().padLeft(2, '0')}-${expirationDate.day.toString().padLeft(2, '0')}',
     );
     return true;
+  }
+
+  // Reprograma el lote guardado. Un problema con Android no revierte la compra
+  // previamente confirmada por SQLite; el formulario muestra una advertencia.
+  Future<bool> reconcileLot(int lotId, String productName) async {
+    final lot = await InventoryDB.instance.getLot(lotId);
+    try {
+      await _plugin.cancel(lotId);
+      if (lot == null) return false;
+      final quantity = (lot['quantity_current'] as num).toDouble();
+      final expiry = DateTime.parse(lot['expiration_date'].toString());
+      final scheduled = quantity > 0 && await scheduleExpiry(
+        lotId: lotId,
+        productName: productName,
+        expirationDate: expiry,
+      );
+      await InventoryDB.instance.setLotNotification(
+        lotId, notificationId: lotId, scheduled: scheduled,
+      );
+      return scheduled;
+    } catch (_) {
+      if (lot != null) {
+        try {
+          await InventoryDB.instance.setLotNotification(
+            lotId, notificationId: lotId, scheduled: false,
+          );
+        } catch (_) {}
+      }
+      rethrow;
+    }
+  }
+
+  // Solo se cancelan alarmas cuando un lote queda a cero. Nunca se deshace
+  // el consumo confirmado por SQLite si el sistema Android falla.
+  Future<bool> cancelDepletedLots(Iterable<int> lotIds) async {
+    var allOk = true;
+    for (final lotId in lotIds) {
+      try {
+        await _plugin.cancel(lotId);
+        await InventoryDB.instance.setLotNotification(
+          lotId, notificationId: lotId, scheduled: false,
+        );
+      } catch (_) {
+        allOk = false;
+      }
+    }
+    return allOk;
+  }
+
+  Future<bool> cancelProductLots(int productId) async {
+    final lots = await InventoryDB.instance.getLots(productId);
+    return cancelDepletedLots(lots.map((row) => (row['id'] as num).toInt()));
   }
 
   Future<void> cancel(int notificationId) => _plugin.cancel(notificationId);

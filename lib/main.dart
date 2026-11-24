@@ -21,8 +21,16 @@ Future<void> main() async {
   await NotificationService.instance.initialize();
   runApp(const AlacenaApp());
   WidgetsBinding.instance.addPostFrameCallback((_) async {
-    await NotificationService.instance.requestPermissions();
-    await NotificationService.instance.handleInitialPayload();
+    try {
+      await NotificationService.instance.requestPermissions();
+    } catch (e) {
+      debugPrint('No se pudo solicitar permiso de notificaciones: $e');
+    }
+    try {
+      await NotificationService.instance.handleInitialPayload();
+    } catch (e) {
+      debugPrint('No se pudo abrir la notificación inicial: $e');
+    }
   });
 }
 
@@ -42,10 +50,8 @@ class AlacenaApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      
       theme: ThemeData(
         useMaterial3: true,
-
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF536646),
           brightness: Brightness.light,
@@ -55,9 +61,7 @@ class AlacenaApp extends StatelessWidget {
           surface: const Color(0xFFFFFCF6),
           error: const Color(0xFFB64D43),
         ),
-
         scaffoldBackgroundColor: const Color(0xFFF5F2E9),
-
         appBarTheme: const AppBarTheme(
           centerTitle: false,
           elevation: 0,
@@ -66,46 +70,31 @@ class AlacenaApp extends StatelessWidget {
           foregroundColor: Color(0xFF30372D),
           surfaceTintColor: Colors.transparent,
         ),
-
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 12,
-          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-              color: Color(0xFFD8D8CB),
-            ),
+            borderSide: const BorderSide(color: Color(0xFFD8D8CB)),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-              color: Color(0xFFD8D8CB),
-            ),
+            borderSide: const BorderSide(color: Color(0xFFD8D8CB)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-              color: Color(0xFF536646),
-              width: 1.5,
-            ),
+            borderSide: const BorderSide(color: Color(0xFF536646), width: 1.5),
           ),
         ),
-
-        floatingActionButtonTheme:
-            const FloatingActionButtonThemeData(
+        floatingActionButtonTheme: const FloatingActionButtonThemeData(
           backgroundColor: Color(0xFF536646),
           foregroundColor: Colors.white,
         ),
-
         snackBarTheme: const SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
         ),
       ),
-
       routes: {
         '/': (_) => const InventoryScreen(),
         '/calendar': (_) => const CalendarScreen(),

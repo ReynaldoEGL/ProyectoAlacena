@@ -17,6 +17,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _focusedDay = soloFecha(DateTime.now());
   DateTime? _selectedDay;
   bool _loading = true;
+  String? _loadError;
   bool _argsRead = false;
   bool _openDayFromNotification = false;
 
@@ -36,19 +37,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> _reload() async {
-    final raw = await _db.getCalendarEvents();
-    final parsed = <DateTime, List<Map<String, dynamic>>>{};
-    for (final entry in raw.entries) {
-      final date = DateTime.tryParse(entry.key);
-      if (date != null) parsed[soloFecha(date)] = entry.value;
-    }
-    if (!mounted) return;
-    setState(() { _events = parsed; _loading = false; });
-    if (_openDayFromNotification && _selectedDay != null) {
-      _openDayFromNotification = false;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _showDay(_selectedDay!);
-      });
+    try {
+      final raw = await _db.getCalendarEvents();
+      final parsed = <DateTime, List<Map<String, dynamic>>>{};
+      for (final entry in raw.entries) {
+        final date = DateTime.tryParse(entry.key);
+        if (date != null) parsed[soloFecha(date)] = entry.value;
+      }
+      if (!mounted) return;
+      setState(() { _events = parsed; _loading = false; _loadError = null; });
+      if (_openDayFromNotification && _selectedDay != null) {
+        _openDayFromNotification = false;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showDay(_selectedDay!);
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _loading = false; _loadError = 'No se pudo cargar el calendario: $e'; });
     }
   }
 
@@ -65,25 +71,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Widget _markerBuilder(BuildContext context, DateTime day, List<dynamic> events) {
     if (events.isEmpty) return const SizedBox.shrink();
-    final visibleDots = events.length > 8 ? 8 : events.length;
+    final size = events.length > 12 ? 3.0 : 4.5;
     return Positioned(
       bottom: 2,
       left: 1,
       right: 1,
-      child: Row(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
-        Flexible(child: Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 2,
-          runSpacing: 2,
-          children: List.generate(visibleDots, (index) => Container(
-            width: 4.5,
-            height: 4.5,
-            decoration: BoxDecoration(color: Colors.deepOrange.shade600, shape: BoxShape.circle),
-          )),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 2,
+        runSpacing: 2,
+        children: List.generate(events.length, (index) => Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: Colors.deepOrange.shade600,
+            shape: BoxShape.circle,
+          ),
         )),
-        if (events.length > 8)
-          Text('+${events.length - 8}', style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold)),
-      ]),
+      ),
     );
   }
 
@@ -93,6 +98,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
       appBar: AppBar(title: const Text('Calendario de alertas')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
+          : _loadError != null
+              ? Center(child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(_loadError!, textAlign: TextAlign.center),
+                    const SizedBox(height: 12),
+                    FilledButton(onPressed: _reload, child: const Text('Reintentar')),
+                  ]),
+                ))
           : RefreshIndicator(
               onRefresh: _reload,
               child: CustomScrollView(slivers: [
@@ -111,7 +125,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           eventLoader: _eventsForDay,
                           startingDayOfWeek: StartingDayOfWeek.monday,
                           calendarFormat: CalendarFormat.month,
-                          rowHeight: 54,
+                          rowHeight: 70,
                           headerStyle: const HeaderStyle(
                             formatButtonVisible: false,
                             titleCentered: true,
@@ -141,7 +155,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     child: Row(children: [
                       Container(width: 8, height: 8, decoration: BoxDecoration(color: Colors.deepOrange.shade600, shape: BoxShape.circle)),
                       const SizedBox(width: 8),
-                      const Expanded(child: Text('Cada punto representa un producto con una alerta en esa fecha. En días con más de ocho productos, el excedente se indica con +N.')),
+                      const Expanded(child: Text('Cada punto representa un producto con una alerta en esa fecha.')),
                     ]),
                   ),
                 ),
@@ -188,7 +202,9 @@ class DayAlertsModal extends StatelessWidget {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('Productos de esta fecha', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
-              Text('${events.length} producto(s) con alertas o caducidades registradas.'),
+              Text(events.length == 1
+                   ? '1 producto con alertas o caducidades registradas.'
+                   : '${events.length} productos con alertas o caducidades registradas.'),
             ]),
           ),
         ),
@@ -199,12 +215,7 @@ class DayAlertsModal extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 24),
             sliver: SliverList(delegate: SliverChildBuilderDelegate((context, index) {
               final item = events[index];
-              final quantityRaw =
-                  item['quantity_current'] ?? item['stock_total'] ?? 0;
-
-              final quantityValue = quantityRaw is num
-                  ? quantityRaw.toDouble()
-                  : double.tryParse(quantityRaw.toString()) ?? 0.0;
+              final quantity = item['quantity_alert_total'] ?? item['quantity_current'] ?? item['stock_total'] ?? 0;
               final unit = item['unit']?.toString() ?? 'pieza';
               final eventType = item['event_type']?.toString() ?? 'Caducidad';
               final lotExpiry = item['expiration_date'] ?? item['next_expiry'];
@@ -222,11 +233,10 @@ class DayAlertsModal extends StatelessWidget {
                       const SizedBox(height: 6),
                       Text('Alerta: $eventType', style: TextStyle(color: Colors.deepOrange.shade800, fontWeight: FontWeight.w600)),
                       if (lotExpiry != null) Text('Caducidad: ${fechaTexto(lotExpiry)}'),
-                      Text(
-                        'Cantidad registrada: '
-                        '${quantityValue.toStringAsFixed(quantityValue % 1 == 0 ? 0 : 2)} $unit',
-                      ),
+                      Text('Cantidad registrada: ${(quantity as num).toDouble().toStringAsFixed((quantity as num).toDouble() % 1 == 0 ? 0 : 2)} $unit'),
                       if (item['store_name'] != null) Text('Tienda: ${item['store_name']}'),
+                       if ((item['lot_count'] as num? ?? 1) > 1)
+                         Text('Lotes con esta fecha: ${item['lot_count']}'),
                     ])),
                   ]),
                 ),

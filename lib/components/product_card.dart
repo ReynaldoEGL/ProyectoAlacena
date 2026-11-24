@@ -27,6 +27,7 @@ class ProductCard extends StatelessWidget {
     final stock = (product['stock_total'] as num?)?.toDouble() ?? 0;
     final unit = product['unit']?.toString() ?? 'pieza';
     final expiry = product['next_expiry'];
+    final available = (product['stock_available'] as num?)?.toDouble() ?? stock;
     return Slidable(
       key: ValueKey('product-${product['id']}'),
       endActionPane: ActionPane(
@@ -61,15 +62,10 @@ class ProductCard extends StatelessWidget {
       child: Card(
         color: Colors.white,
         elevation: 0,
-        margin: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 4,
-        ),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(
-            color: Color(0xFFE5E1D7),
-          ),
+          side: const BorderSide(color: Color(0xFFE5E1D7)),
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
@@ -91,6 +87,9 @@ class ProductCard extends StatelessWidget {
                         Text(product['brand'].toString(), style: Theme.of(context).textTheme.bodySmall),
                       const SizedBox(height: 5),
                       Text('Existencia: ${stock.toStringAsFixed(stock % 1 == 0 ? 0 : 2)} $unit'),
+                      if (available < stock)
+                        Text('Vigente: ${available.toStringAsFixed(available % 1 == 0 ? 0 : 2)} $unit',
+                            style: Theme.of(context).textTheme.bodySmall),
                       if (expiry != null) Text('Próxima caducidad: ${fechaTexto(expiry)}',
                           style: Theme.of(context).textTheme.bodySmall),
                       const SizedBox(height: 7),
