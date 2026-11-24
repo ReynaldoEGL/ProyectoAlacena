@@ -81,17 +81,25 @@ class ProductCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(product['name']?.toString() ?? 'Artículo',
-                          maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700)),
                       if ((product['brand']?.toString() ?? '').isNotEmpty)
-                        Text(product['brand'].toString(), style: Theme.of(context).textTheme.bodySmall),
-                      const SizedBox(height: 5),
-                      Text('Existencia: ${stock.toStringAsFixed(stock % 1 == 0 ? 0 : 2)} $unit'),
-                      if (available < stock)
-                        Text('Vigente: ${available.toStringAsFixed(available % 1 == 0 ? 0 : 2)} $unit',
+                        Text(product['brand'].toString(),
                             style: Theme.of(context).textTheme.bodySmall),
-                      if (expiry != null) Text('Próxima caducidad: ${fechaTexto(expiry)}',
-                          style: Theme.of(context).textTheme.bodySmall),
+                      const SizedBox(height: 5),
+                      Text(
+                          'Existencia: ${stock.toStringAsFixed(stock % 1 == 0 ? 0 : 2)} $unit'),
+                      if (available < stock)
+                        Text(
+                            'Vigente: ${available.toStringAsFixed(available % 1 == 0 ? 0 : 2)} $unit',
+                            style: Theme.of(context).textTheme.bodySmall),
+                      if (expiry != null)
+                        Text('Próxima caducidad: ${fechaTexto(expiry)}',
+                            style: Theme.of(context).textTheme.bodySmall),
                       const SizedBox(height: 7),
                       DecoratedBox(
                         decoration: BoxDecoration(
@@ -99,11 +107,17 @@ class ProductCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 4),
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            Icon(iconoEstado(status), size: 15, color: colorEstado(status)),
+                            Icon(iconoEstado(status),
+                                size: 15, color: colorEstado(status)),
                             const SizedBox(width: 4),
-                            Text(status, style: TextStyle(color: colorEstado(status), fontWeight: FontWeight.w600, fontSize: 12)),
+                            Text(status,
+                                style: TextStyle(
+                                    color: colorEstado(status),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12)),
                           ]),
                         ),
                       ),

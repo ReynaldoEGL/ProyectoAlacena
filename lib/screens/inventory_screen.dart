@@ -36,7 +36,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   Future<void> _reload() async {
     try {
-      final results = await Future.wait([_db.getInventory(), _db.getCartCount()]);
+      final results =
+          await Future.wait([_db.getInventory(), _db.getCartCount()]);
       if (!mounted) return;
       setState(() {
         _products = (results[0] as List<Map<String, dynamic>>);
@@ -64,13 +65,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
         'Alertas' => esAlerta(status),
         _ => status == _filter,
       };
-      final text = '${product['name']} ${product['brand']} ${product['category_name']}'.toLowerCase();
+      final text =
+          '${product['name']} ${product['brand']} ${product['category_name']}'
+              .toLowerCase();
       return matchesFilter && text.contains(query);
     }).toList();
   }
 
   Future<void> _openProduct(Map<String, dynamic> product) async {
-    await Navigator.pushNamed(context, '/product-detail', arguments: product['id']);
+    await Navigator.pushNamed(context, '/product-detail',
+        arguments: product['id']);
     _reload();
   }
 
@@ -98,7 +102,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
     try {
       final depleted = await _db.consumeFefo(productId, quantity);
       await _reload();
-      final ok = await NotificationService.instance.cancelDepletedLots(depleted);
+      final ok =
+          await NotificationService.instance.cancelDepletedLots(depleted);
       _message(ok
           ? 'Consumo registrado aplicando FEFO.'
           : 'Consumo registrado. Revisa los permisos de notificaciones.');
@@ -112,10 +117,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Archivar artículo'),
-        content: Text('¿Deseas ocultar "${product['name']}" del inventario activo? Se conservará su historial de compras.'),
+        content: Text(
+            '¿Deseas ocultar "${product['name']}" del inventario activo? Se conservará su historial de compras.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Archivar')),
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Archivar')),
         ],
       ),
     );
@@ -124,9 +134,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
     try {
       await _db.archiveProduct(productId);
       await _reload();
-      final ok = await NotificationService.instance.cancelProductLots(productId);
-      _message(ok ? 'Artículo archivado.' :
-          'Artículo archivado, pero no se pudieron cancelar todas sus alarmas.');
+      final ok =
+          await NotificationService.instance.cancelProductLots(productId);
+      _message(ok
+          ? 'Artículo archivado.'
+          : 'Artículo archivado, pero no se pudieron cancelar todas sus alarmas.');
     } catch (e) {
       _message('No se pudo archivar: $e');
     }
@@ -135,7 +147,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
   @override
   Widget build(BuildContext context) {
     final filtered = _filteredProducts;
-    final alertCount = _products.where((p) => esAlerta(estadoProducto(p))).length;
+    final alertCount =
+        _products.where((p) => esAlerta(estadoProducto(p))).length;
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: _reload,
@@ -173,7 +186,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   child: badges.Badge(
                     showBadge: _cartCount > 0,
                     position: badges.BadgePosition.topEnd(top: 2, end: 2),
-                    badgeContent: Text('$_cartCount', style: const TextStyle(color: Colors.white, fontSize: 10)),
+                    badgeContent: Text('$_cartCount',
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 10)),
                     child: IconButton(
                       tooltip: 'Lista de compra',
                       onPressed: () async {
@@ -207,12 +222,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           size: 28, color: Color(0xFF536646)),
                     ),
                     const SizedBox(width: 12),
-                    Expanded(child: Column(
+                    Expanded(
+                        child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Resumen de la alacena',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600)),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w600)),
                         const SizedBox(height: 4),
                         Text(alertCount == 0
                             ? 'No hay productos que requieran atención.'
@@ -221,7 +239,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 : '$alertCount productos requieren atención.'),
                         const SizedBox(height: 6),
                         TextButton.icon(
-                          onPressed: () => Navigator.pushNamed(context, '/calendar'),
+                          onPressed: () =>
+                              Navigator.pushNamed(context, '/calendar'),
                           icon: const Icon(Icons.calendar_month_outlined),
                           label: const Text('Ver calendario'),
                         ),
@@ -233,17 +252,23 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 child: TextField(
                   controller: _search,
                   onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.search),
                     hintText: 'Buscar por producto, marca o categoría',
-                    suffixIcon: _search.text.isEmpty ? null : IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () { _search.clear(); setState(() {}); },
-                    ),
+                    suffixIcon: _search.text.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () {
+                              _search.clear();
+                              setState(() {});
+                            },
+                          ),
                   ),
                 ),
               ),
@@ -251,13 +276,23 @@ class _InventoryScreenState extends State<InventoryScreen> {
             SliverToBoxAdapter(
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Row(children: [
-                  for (final filter in ['Alertas', 'Todos', 'Caducado', 'Sin existencia', 'Por caducar', 'Por agotarse', 'Disponible'])
+                  for (final filter in [
+                    'Alertas',
+                    'Todos',
+                    'Caducado',
+                    'Sin existencia',
+                    'Por caducar',
+                    'Por agotarse',
+                    'Disponible'
+                  ])
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: ChoiceChip(
-                        label: Text(filter), selected: _filter == filter,
+                        label: Text(filter),
+                        selected: _filter == filter,
                         onSelected: (_) => setState(() => _filter = filter),
                       ),
                     ),
@@ -268,28 +303,50 @@ class _InventoryScreenState extends State<InventoryScreen> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: Row(children: [
-                  Expanded(child: Text(_filter == 'Alertas' ? 'Requieren atención' : 'Artículos', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold))),
-                  Text('${filtered.length}', style: Theme.of(context).textTheme.titleMedium),
+                  Expanded(
+                      child: Text(
+                          _filter == 'Alertas'
+                              ? 'Requieren atención'
+                              : 'Artículos',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold))),
+                  Text('${filtered.length}',
+                      style: Theme.of(context).textTheme.titleMedium),
                 ]),
               ),
             ),
             if (_loading)
-              const SliverFillRemaining(hasScrollBody: false, child: Center(child: CircularProgressIndicator()))
+              const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(child: CircularProgressIndicator()))
             else if (filtered.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
-                child: Center(child: Padding(
+                child: Center(
+                    child: Padding(
                   padding: const EdgeInsets.all(32),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.inventory_2_outlined, size: 60, color: Colors.grey.shade500),
+                    Icon(Icons.inventory_2_outlined,
+                        size: 60, color: Colors.grey.shade500),
                     const SizedBox(height: 12),
-                    Text(_products.isEmpty ? 'Todavía no hay artículos' : 'No hay artículos para este filtro', style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                        _products.isEmpty
+                            ? 'Todavía no hay artículos'
+                            : 'No hay artículos para este filtro',
+                        style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: 6),
                     Text(_products.isEmpty
                         ? 'Registra un artículo y después agrega uno o varios lotes.'
                         : 'Cambia el filtro o escribe otro término de búsqueda.'),
                     const SizedBox(height: 12),
-                    FilledButton.icon(onPressed: () => Navigator.pushNamed(context, '/product-form').then((_) => _reload()), icon: const Icon(Icons.add), label: const Text('Agregar artículo')),
+                    FilledButton.icon(
+                        onPressed: () =>
+                            Navigator.pushNamed(context, '/product-form')
+                                .then((_) => _reload()),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Agregar artículo')),
                   ]),
                 )),
               )
@@ -317,7 +374,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.pushNamed(context, '/product-form').then((_) => _reload()),
+        onPressed: () => Navigator.pushNamed(context, '/product-form')
+            .then((_) => _reload()),
         icon: const Icon(Icons.add),
         label: const Text('Nuevo artículo'),
       ),

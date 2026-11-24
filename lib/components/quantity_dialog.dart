@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 class QuantityDialog extends StatefulWidget {
-  const QuantityDialog({super.key, required this.productName, required this.unit});
+  const QuantityDialog(
+      {super.key, required this.productName, required this.unit});
   final String productName;
   final String unit;
 
@@ -20,7 +21,8 @@ class _QuantityDialogState extends State<QuantityDialog> {
   }
 
   void _confirm() {
-    final number = double.tryParse(_controller.text.trim().replaceAll(',', '.'));
+    final number =
+        double.tryParse(_controller.text.trim().replaceAll(',', '.'));
     if (number == null || !number.isFinite || number <= 0) {
       setState(() => _error = 'Introduce una cantidad mayor que cero.');
       return;
@@ -51,7 +53,9 @@ class _QuantityDialogState extends State<QuantityDialog> {
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar')),
         FilledButton(onPressed: _confirm, child: const Text('Consumir')),
       ],
     );

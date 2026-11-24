@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 final DateFormat fechaFormato = DateFormat('dd/MM/yyyy', 'es_MX');
-final NumberFormat monedaFormato = NumberFormat.currency(locale: 'es_MX', symbol: '\$');
+final NumberFormat monedaFormato =
+    NumberFormat.currency(locale: 'es_MX', symbol: '\$');
 
-DateTime soloFecha(DateTime fecha) => DateTime(fecha.year, fecha.month, fecha.day);
+DateTime soloFecha(DateTime fecha) =>
+    DateTime(fecha.year, fecha.month, fecha.day);
 
 String fechaTexto(Object? value) {
   if (value == null || value.toString().isEmpty) return 'Sin fecha';
@@ -25,7 +27,8 @@ int diasHasta(Object? value) {
   if (parsed == null) return 999999;
   final today = DateTime.now();
   return DateTime.utc(parsed.year, parsed.month, parsed.day)
-      .difference(DateTime.utc(today.year, today.month, today.day)).inDays;
+      .difference(DateTime.utc(today.year, today.month, today.day))
+      .inDays;
 }
 
 String estadoProducto(Map<String, dynamic> producto) {
@@ -83,7 +86,8 @@ Widget imagenProducto(String? path, {double size = 72}) {
       width: size,
       height: size,
       child: filePath.isNotEmpty && File(filePath).existsSync()
-          ? Image.file(File(filePath), fit: BoxFit.cover,
+          ? Image.file(File(filePath),
+              fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => _imagenVacia(size))
           : _imagenVacia(size),
     ),
@@ -93,5 +97,6 @@ Widget imagenProducto(String? path, {double size = 72}) {
 Widget _imagenVacia(double size) => Container(
       color: Colors.green.shade50,
       alignment: Alignment.center,
-      child: Icon(Icons.kitchen_outlined, size: size * .48, color: Colors.green.shade700),
+      child: Icon(Icons.kitchen_outlined,
+          size: size * .48, color: Colors.green.shade700),
     );

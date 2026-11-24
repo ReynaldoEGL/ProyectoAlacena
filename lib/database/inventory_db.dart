@@ -112,9 +112,12 @@ class InventoryDB {
           )
         ''');
         await _createAdjustmentTable(db);
-        await db.execute('CREATE INDEX idx_lots_product_expiry ON lots(product_id, expiration_date)');
-        await db.execute('CREATE INDEX idx_lots_expiry ON lots(expiration_date)');
-        await db.execute('CREATE INDEX idx_purchases_product ON purchase_history(product_id)');
+        await db.execute(
+            'CREATE INDEX idx_lots_product_expiry ON lots(product_id, expiration_date)');
+        await db
+            .execute('CREATE INDEX idx_lots_expiry ON lots(expiration_date)');
+        await db.execute(
+            'CREATE INDEX idx_purchases_product ON purchase_history(product_id)');
 
         final categories = <Map<String, Object>>[
           {'name': 'Frutas y verduras', 'icon': 'eco'},
@@ -129,8 +132,10 @@ class InventoryDB {
         for (final row in categories) {
           await db.insert('categories', row);
         }
-        await db.insert('stores', {'name': 'Supermercado', 'address': '', 'phone': ''});
-        await db.insert('stores', {'name': 'Mercado local', 'address': '', 'phone': ''});
+        await db.insert(
+            'stores', {'name': 'Supermercado', 'address': '', 'phone': ''});
+        await db.insert(
+            'stores', {'name': 'Mercado local', 'address': '', 'phone': ''});
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) await _createAdjustmentTable(db);
@@ -152,7 +157,8 @@ class InventoryDB {
         FOREIGN KEY(lot_id) REFERENCES lots(id) ON DELETE SET NULL
       )
     ''');
-    await db.execute('CREATE INDEX idx_adjustments_product ON stock_adjustments(product_id)');
+    await db.execute(
+        'CREATE INDEX idx_adjustments_product ON stock_adjustments(product_id)');
   }
 
   bool _validNumber(double value, {bool positive = false}) =>
@@ -168,7 +174,8 @@ class InventoryDB {
   Future<List<Map<String, dynamic>>> getStores() async =>
       (await database).query('stores', orderBy: 'name COLLATE NOCASE');
 
-  Future<int> saveCategory({int? id, required String name, String icon = 'category'}) async {
+  Future<int> saveCategory(
+      {int? id, required String name, String icon = 'category'}) async {
     _requiredName(name);
     final db = await database;
     final data = {'name': name.trim(), 'icon': icon};
@@ -177,10 +184,18 @@ class InventoryDB {
         : db.update('categories', data, where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<int> saveStore({int? id, required String name, String address = '', String phone = ''}) async {
+  Future<int> saveStore(
+      {int? id,
+      required String name,
+      String address = '',
+      String phone = ''}) async {
     _requiredName(name);
     final db = await database;
-    final data = {'name': name.trim(), 'address': address.trim(), 'phone': phone.trim()};
+    final data = {
+      'name': name.trim(),
+      'address': address.trim(),
+      'phone': phone.trim()
+    };
     return id == null
         ? db.insert('stores', data)
         : db.update('stores', data, where: 'id = ?', whereArgs: [id]);
@@ -212,13 +227,15 @@ class InventoryDB {
     };
     return id == null
         ? db.insert('products', data)
-        : db.update('products', data, where: 'id = ? AND is_active = 1', whereArgs: [id]);
+        : db.update('products', data,
+            where: 'id = ? AND is_active = 1', whereArgs: [id]);
   }
 
   Future<void> archiveProduct(int id) async {
     final db = await database;
     await db.transaction((txn) async {
-      await txn.update('products', {'is_active': 0}, where: 'id = ?', whereArgs: [id]);
+      await txn.update('products', {'is_active': 0},
+          where: 'id = ?', whereArgs: [id]);
       await txn.delete('cart', where: 'product_id = ?', whereArgs: [id]);
     });
   }
@@ -235,7 +252,8 @@ class InventoryDB {
     return rows.isEmpty ? null : rows.first;
   }
 
-  Future<List<Map<String, dynamic>>> getInventory({bool activeOnly = true}) async {
+  Future<List<Map<String, dynamic>>> getInventory(
+      {bool activeOnly = true}) async {
     final db = await database;
     final active = activeOnly ? 'WHERE p.is_active = 1' : '';
     return db.rawQuery('''
@@ -268,7 +286,8 @@ class InventoryDB {
   }
 
   Future<Map<String, dynamic>?> getLot(int lotId) async {
-    final rows = await (await database).query('lots', where: 'id = ?', whereArgs: [lotId], limit: 1);
+    final rows = await (await database)
+        .query('lots', where: 'id = ?', whereArgs: [lotId], limit: 1);
     return rows.isEmpty ? null : rows.first;
   }
 
@@ -282,12 +301,14 @@ class InventoryDB {
     required double unitCost,
   }) async {
     if (!_validNumber(quantity) || !_validNumber(unitCost)) {
-      throw ArgumentError('Cantidad y costo deben ser números finitos no negativos.');
+      throw ArgumentError(
+          'Cantidad y costo deben ser números finitos no negativos.');
     }
     if (lotId == null && quantity <= 0) {
       throw ArgumentError('Una compra debe tener cantidad positiva.');
     }
-    if (DateTime.tryParse(expiryDate) == null || DateTime.tryParse(purchaseDate) == null) {
+    if (DateTime.tryParse(expiryDate) == null ||
+        DateTime.tryParse(purchaseDate) == null) {
       throw ArgumentError('Las fechas son inválidas.');
     }
     final db = await database;
@@ -317,13 +338,19 @@ class InventoryDB {
         return id;
       }
       final old = await txn.query('lots',
-          where: 'id = ? AND product_id = ?', whereArgs: [lotId, productId], limit: 1);
+          where: 'id = ? AND product_id = ?',
+          whereArgs: [lotId, productId],
+          limit: 1);
       if (old.isEmpty) throw StateError('El lote ya no existe.');
       final previous = (old.first['quantity_current'] as num).toDouble();
-      await txn.update('lots', {
-        'quantity_current': quantity,
-        'expiration_date': expiryDate,
-      }, where: 'id = ? AND product_id = ?', whereArgs: [lotId, productId]);
+      await txn.update(
+          'lots',
+          {
+            'quantity_current': quantity,
+            'expiration_date': expiryDate,
+          },
+          where: 'id = ? AND product_id = ?',
+          whereArgs: [lotId, productId]);
       if ((previous - quantity).abs() > 0.000001) {
         await txn.insert('stock_adjustments', {
           'product_id': productId,
@@ -340,13 +367,20 @@ class InventoryDB {
 
   Future<List<Map<String, dynamic>>> getStockAdjustments(int productId) async =>
       (await database).query('stock_adjustments',
-          where: 'product_id = ?', whereArgs: [productId], orderBy: 'adjusted_at DESC');
+          where: 'product_id = ?',
+          whereArgs: [productId],
+          orderBy: 'adjusted_at DESC');
 
-  Future<void> setLotNotification(int lotId, {required int notificationId, required bool scheduled}) async {
-    await (await database).update('lots', {
-      'notification_id': notificationId,
-      'notification_scheduled': scheduled ? 1 : 0,
-    }, where: 'id = ?', whereArgs: [lotId]);
+  Future<void> setLotNotification(int lotId,
+      {required int notificationId, required bool scheduled}) async {
+    await (await database).update(
+        'lots',
+        {
+          'notification_id': notificationId,
+          'notification_scheduled': scheduled ? 1 : 0,
+        },
+        where: 'id = ?',
+        whereArgs: [lotId]);
   }
 
   Future<int> deleteLot(int id) async =>
@@ -355,19 +389,24 @@ class InventoryDB {
   // Solo consume lotes vigentes; todo el descuento y su historial son atómicos.
   Future<List<int>> consumeFefo(int productId, double requested) async {
     if (!_validNumber(requested, positive: true)) {
-      throw ArgumentError('La cantidad debe ser un número finito mayor que cero.');
+      throw ArgumentError(
+          'La cantidad debe ser un número finito mayor que cero.');
     }
     final db = await database;
     return db.transaction<List<int>>((txn) async {
       final today = DateTime.now();
-      final todayIso = '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+      final todayIso =
+          '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
       final lots = await txn.query('lots',
-          where: 'product_id = ? AND quantity_current > 0 AND expiration_date >= ?',
-          whereArgs: [productId, todayIso], orderBy: 'expiration_date ASC, id ASC');
-      final available = lots.fold<double>(0,
-          (sum, lot) => sum + (lot['quantity_current'] as num).toDouble());
+          where:
+              'product_id = ? AND quantity_current > 0 AND expiration_date >= ?',
+          whereArgs: [productId, todayIso],
+          orderBy: 'expiration_date ASC, id ASC');
+      final available = lots.fold<double>(
+          0, (sum, lot) => sum + (lot['quantity_current'] as num).toDouble());
       if (available + 0.000001 < requested) {
-        throw StateError('Existencias vigentes insuficientes. Disponibles: ${available.toStringAsFixed(2)}');
+        throw StateError(
+            'Existencias vigentes insuficientes. Disponibles: ${available.toStringAsFixed(2)}');
       }
       var remaining = requested;
       final depleted = <int>[];
@@ -403,7 +442,8 @@ class InventoryDB {
         ORDER BY last_purchase DESC
       ''', [productId]);
 
-  Future<List<Map<String, dynamic>>> getPurchaseHistory({int? productId}) async {
+  Future<List<Map<String, dynamic>>> getPurchaseHistory(
+      {int? productId}) async {
     final db = await database;
     if (productId != null) {
       return db.rawQuery('''
@@ -425,13 +465,20 @@ class InventoryDB {
     }
     final db = await database;
     await db.transaction((txn) async {
-      final active = await txn.query('products', columns: ['id'],
-          where: 'id = ? AND is_active = 1', whereArgs: [productId], limit: 1);
+      final active = await txn.query('products',
+          columns: ['id'],
+          where: 'id = ? AND is_active = 1',
+          whereArgs: [productId],
+          limit: 1);
       if (active.isEmpty) throw StateError('Este artículo ya no está activo.');
-      final current = await txn.query('cart', columns: ['quantity'],
-          where: 'product_id = ?', whereArgs: [productId], limit: 1);
+      final current = await txn.query('cart',
+          columns: ['quantity'],
+          where: 'product_id = ?',
+          whereArgs: [productId],
+          limit: 1);
       if (current.isEmpty) {
-        await txn.insert('cart', {'product_id': productId, 'quantity': quantity});
+        await txn
+            .insert('cart', {'product_id': productId, 'quantity': quantity});
       } else {
         final oldQuantity = (current.first['quantity'] as num).toDouble();
         await txn.update('cart', {'quantity': oldQuantity + quantity},
@@ -454,7 +501,8 @@ class InventoryDB {
 
   // El badge indica productos distintos (número de filas), no unidades.
   Future<int> getCartCount() async {
-    final result = await (await database).rawQuery('SELECT COUNT(*) AS count FROM cart');
+    final result =
+        await (await database).rawQuery('SELECT COUNT(*) AS count FROM cart');
     return (result.first['count'] as num).toInt();
   }
 
@@ -490,7 +538,8 @@ class InventoryDB {
       final day = lot['expiration_date'].toString();
       final productId = (lot['product_id'] as num).toInt();
       final quantity = (lot['quantity_current'] as num).toDouble();
-      final events = grouped.putIfAbsent(day, () => <int, Map<String, dynamic>>{});
+      final events =
+          grouped.putIfAbsent(day, () => <int, Map<String, dynamic>>{});
       final existing = events[productId];
       if (existing == null) {
         events[productId] = {
@@ -509,17 +558,20 @@ class InventoryDB {
       }
     }
     final now = DateTime.now();
-    final today = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final today =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     for (final product in inventory) {
       final stock = (product['stock_total'] as num).toDouble();
       final expired = (product['expired_stock'] as num).toDouble();
       final minimum = (product['min_stock'] as num).toDouble();
       final alertDays = (product['expiry_alert_days'] as num).toInt();
-      final nextExpiry = DateTime.tryParse(product['next_expiry']?.toString() ?? '');
+      final nextExpiry =
+          DateTime.tryParse(product['next_expiry']?.toString() ?? '');
       final days = nextExpiry == null
           ? null
           : DateTime(nextExpiry.year, nextExpiry.month, nextExpiry.day)
-              .difference(DateTime(now.year, now.month, now.day)).inDays;
+              .difference(DateTime(now.year, now.month, now.day))
+              .inDays;
       final type = expired > 0
           ? 'Caducado'
           : stock <= 0
@@ -530,7 +582,8 @@ class InventoryDB {
                       ? 'Por agotarse'
                       : null;
       if (type == null) continue;
-      final todayEvents = grouped.putIfAbsent(today, () => <int, Map<String, dynamic>>{});
+      final todayEvents =
+          grouped.putIfAbsent(today, () => <int, Map<String, dynamic>>{});
       final id = (product['id'] as num).toInt();
       final existing = todayEvents[id];
       if (existing == null) {
@@ -550,8 +603,8 @@ class InventoryDB {
       ''');
 
   Future<int> countProducts() async {
-    final result = await (await database).rawQuery(
-        'SELECT COUNT(*) AS count FROM products WHERE is_active = 1');
+    final result = await (await database)
+        .rawQuery('SELECT COUNT(*) AS count FROM products WHERE is_active = 1');
     return (result.first['count'] as num).toInt();
   }
 }

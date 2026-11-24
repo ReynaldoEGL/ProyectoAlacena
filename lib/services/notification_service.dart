@@ -9,7 +9,8 @@ class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
 
-  final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _plugin =
+      FlutterLocalNotificationsPlugin();
   String? _initialPayload;
 
   Future<void> initialize() async {
@@ -45,9 +46,11 @@ class NotificationService {
   }
 
   Future<void> requestPermissions() async {
-    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
     await androidPlugin?.requestNotificationsPermission();
-    final iosPlugin = _plugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+    final iosPlugin = _plugin.resolvePlatformSpecificImplementation<
+        IOSFlutterLocalNotificationsPlugin>();
     await iosPlugin?.requestPermissions(alert: true, badge: true, sound: true);
   }
 
@@ -76,7 +79,11 @@ class NotificationService {
     // Construir la fecha directamente en la zona elegida evita corrimientos
     // si el dispositivo está configurado en una zona distinta.
     final scheduled = tz.TZDateTime(
-      tz.local, expirationDate.year, expirationDate.month, expirationDate.day, 9,
+      tz.local,
+      expirationDate.year,
+      expirationDate.month,
+      expirationDate.day,
+      9,
     );
     if (!scheduled.isAfter(tz.TZDateTime.now(tz.local))) {
       await _plugin.cancel(lotId);
@@ -87,7 +94,8 @@ class NotificationService {
       android: AndroidNotificationDetails(
         'alacena_caducidad',
         'Caducidad de productos',
-        channelDescription: 'Avisos locales cuando un lote llega a su fecha de caducidad.',
+        channelDescription:
+            'Avisos locales cuando un lote llega a su fecha de caducidad.',
         importance: Importance.max,
         priority: Priority.high,
       ),
@@ -101,8 +109,10 @@ class NotificationService {
       scheduled,
       details,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      payload: '${expirationDate.year.toString().padLeft(4, '0')}-${expirationDate.month.toString().padLeft(2, '0')}-${expirationDate.day.toString().padLeft(2, '0')}',
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      payload:
+          '${expirationDate.year.toString().padLeft(4, '0')}-${expirationDate.month.toString().padLeft(2, '0')}-${expirationDate.day.toString().padLeft(2, '0')}',
     );
     return true;
   }
@@ -116,20 +126,25 @@ class NotificationService {
       if (lot == null) return false;
       final quantity = (lot['quantity_current'] as num).toDouble();
       final expiry = DateTime.parse(lot['expiration_date'].toString());
-      final scheduled = quantity > 0 && await scheduleExpiry(
-        lotId: lotId,
-        productName: productName,
-        expirationDate: expiry,
-      );
+      final scheduled = quantity > 0 &&
+          await scheduleExpiry(
+            lotId: lotId,
+            productName: productName,
+            expirationDate: expiry,
+          );
       await InventoryDB.instance.setLotNotification(
-        lotId, notificationId: lotId, scheduled: scheduled,
+        lotId,
+        notificationId: lotId,
+        scheduled: scheduled,
       );
       return scheduled;
     } catch (_) {
       if (lot != null) {
         try {
           await InventoryDB.instance.setLotNotification(
-            lotId, notificationId: lotId, scheduled: false,
+            lotId,
+            notificationId: lotId,
+            scheduled: false,
           );
         } catch (_) {}
       }
@@ -145,7 +160,9 @@ class NotificationService {
       try {
         await _plugin.cancel(lotId);
         await InventoryDB.instance.setLotNotification(
-          lotId, notificationId: lotId, scheduled: false,
+          lotId,
+          notificationId: lotId,
+          scheduled: false,
         );
       } catch (_) {
         allOk = false;
@@ -167,12 +184,14 @@ class NotificationService {
       android: AndroidNotificationDetails(
         'alacena_pruebas',
         'Pruebas de alacena',
-        channelDescription: 'Notificaciones manuales para probar la configuración.',
+        channelDescription:
+            'Notificaciones manuales para probar la configuración.',
         importance: Importance.max,
         priority: Priority.high,
       ),
     );
-    await _plugin.show(990001, 'Alacena lista', 'Las notificaciones locales están configuradas.', details,
+    await _plugin.show(990001, 'Alacena lista',
+        'Las notificaciones locales están configuradas.', details,
         payload: DateTime.now().toIso8601String().substring(0, 10));
   }
 }

@@ -55,7 +55,8 @@ class _CatalogManagerState extends State<CatalogManager> {
 
   Future<void> _reload() async {
     try {
-      final items = widget.isStore ? await _db.getStores() : await _db.getCategories();
+      final items =
+          widget.isStore ? await _db.getStores() : await _db.getCategories();
       if (!mounted) return;
       setState(() {
         _items = items;
@@ -73,7 +74,8 @@ class _CatalogManagerState extends State<CatalogManager> {
 
   void _message(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _edit({Map<String, dynamic>? item}) async {
@@ -87,7 +89,10 @@ class _CatalogManagerState extends State<CatalogManager> {
           final id = (item?['id'] as num?)?.toInt();
           if (widget.isStore) {
             final changed = await _db.saveStore(
-              id: id, name: name, address: address, phone: phone,
+              id: id,
+              name: name,
+              address: address,
+              phone: phone,
             );
             if (id != null && changed == 0) {
               throw StateError('La tienda ya no existe.');
@@ -115,10 +120,15 @@ class _CatalogManagerState extends State<CatalogManager> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Confirmar eliminación'),
-        content: Text('¿Eliminar "${item['name']}"? Esta acción no se puede deshacer.'),
+        content: Text(
+            '¿Eliminar "${item['name']}"? Esta acción no se puede deshacer.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Eliminar')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Eliminar')),
         ],
       ),
     );
@@ -154,7 +164,8 @@ class _CatalogManagerState extends State<CatalogManager> {
             else if (_error != null)
               SliverFillRemaining(
                 hasScrollBody: false,
-                child: Center(child: Padding(
+                child: Center(
+                    child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(_error!, textAlign: TextAlign.center),
                 )),
@@ -173,17 +184,22 @@ class _CatalogManagerState extends State<CatalogManager> {
                     final address = item['address']?.toString() ?? '';
                     return Card(
                       child: ListTile(
-                        leading: CircleAvatar(child: Icon(
-                            widget.isStore ? Icons.storefront_outlined : Icons.category_outlined)),
+                        leading: CircleAvatar(
+                            child: Icon(widget.isStore
+                                ? Icons.storefront_outlined
+                                : Icons.category_outlined)),
                         title: Text(item['name'].toString()),
-                        subtitle: widget.isStore && address.isNotEmpty ? Text(address) : null,
+                        subtitle: widget.isStore && address.isNotEmpty
+                            ? Text(address)
+                            : null,
                         trailing: PopupMenuButton<String>(
                           onSelected: (value) => value == 'edit'
                               ? _edit(item: item)
                               : _delete(item),
                           itemBuilder: (_) => const [
                             PopupMenuItem(value: 'edit', child: Text('Editar')),
-                            PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+                            PopupMenuItem(
+                                value: 'delete', child: Text('Eliminar')),
                           ],
                         ),
                       ),
@@ -232,8 +248,10 @@ class _CatalogEditDialogState extends State<_CatalogEditDialog> {
   void initState() {
     super.initState();
     _name = TextEditingController(text: widget.item?['name']?.toString() ?? '');
-    _address = TextEditingController(text: widget.item?['address']?.toString() ?? '');
-    _phone = TextEditingController(text: widget.item?['phone']?.toString() ?? '');
+    _address =
+        TextEditingController(text: widget.item?['address']?.toString() ?? '');
+    _phone =
+        TextEditingController(text: widget.item?['phone']?.toString() ?? '');
   }
 
   @override
@@ -273,7 +291,8 @@ class _CatalogEditDialogState extends State<_CatalogEditDialog> {
     return PopScope(
       canPop: !_saving,
       child: AlertDialog(
-        title: Text('${editing ? 'Editar' : 'Agregar'} ${widget.isStore ? 'tienda' : 'categoría'}'),
+        title: Text(
+            '${editing ? 'Editar' : 'Agregar'} ${widget.isStore ? 'tienda' : 'categoría'}'),
         content: SizedBox(
           width: 420,
           child: Form(
@@ -285,27 +304,34 @@ class _CatalogEditDialogState extends State<_CatalogEditDialog> {
                   autofocus: false,
                   textCapitalization: TextCapitalization.sentences,
                   textInputAction: TextInputAction.next,
-                  decoration: InputDecoration(labelText: widget.isStore
-                      ? 'Nombre de la tienda *' : 'Nombre de la categoría *'),
+                  decoration: InputDecoration(
+                      labelText: widget.isStore
+                          ? 'Nombre de la tienda *'
+                          : 'Nombre de la categoría *'),
                   validator: (v) => v == null || v.trim().isEmpty
-                      ? 'Escribe un nombre.' : null,
+                      ? 'Escribe un nombre.'
+                      : null,
                 ),
                 if (widget.isStore) ...[
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _address,
-                    decoration: const InputDecoration(labelText: 'Dirección (opcional)'),
+                    decoration: const InputDecoration(
+                        labelText: 'Dirección (opcional)'),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _phone,
                     keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(labelText: 'Teléfono (opcional)'),
+                    decoration:
+                        const InputDecoration(labelText: 'Teléfono (opcional)'),
                   ),
                 ],
                 if (_error != null) ...[
                   const SizedBox(height: 12),
-                  Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  Text(_error!,
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.error)),
                 ],
               ]),
             ),

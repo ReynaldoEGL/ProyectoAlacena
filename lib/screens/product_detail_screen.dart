@@ -98,7 +98,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     try {
       final depleted = await _db.consumeFefo(_productId!, quantity);
       await _reload();
-      final ok = await NotificationService.instance.cancelDepletedLots(depleted);
+      final ok =
+          await NotificationService.instance.cancelDepletedLots(depleted);
       _message(ok
           ? 'Consumo FEFO registrado.'
           : 'Consumo registrado, pero hay alertas que no se pudieron cancelar.');
@@ -113,10 +114,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Eliminar lote'),
-        content: const Text('El lote dejará de formar parte del stock. La compra original se conservará en el historial.'),
+        content: const Text(
+            'El lote dejará de formar parte del stock. La compra original se conservará en el historial.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Eliminar lote')),
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Eliminar lote')),
         ],
       ),
     );
@@ -137,25 +143,37 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   void _message(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     final product = _product;
-    if (_loading) return Scaffold(appBar: AppBar(), body: const Center(child: CircularProgressIndicator()));
-    if (_loadError != null) return Scaffold(
-      appBar: AppBar(title: const Text('Artículo')),
-      body: Center(child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(_loadError!, textAlign: TextAlign.center),
-          const SizedBox(height: 12),
-          FilledButton(onPressed: _reload, child: const Text('Reintentar')),
-        ]),
-      )),
-    );
-    if (product == null) return Scaffold(appBar: AppBar(title: const Text('Artículo')), body: const Center(child: Text('No se encontró el artículo.')));
+    if (_loading) {
+      return Scaffold(
+          appBar: AppBar(),
+          body: const Center(child: CircularProgressIndicator()));
+    }
+    if (_loadError != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Artículo')),
+        body: Center(
+            child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(_loadError!, textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            FilledButton(onPressed: _reload, child: const Text('Reintentar')),
+          ]),
+        )),
+      );
+    }
+    if (product == null) {
+      return Scaffold(
+          appBar: AppBar(title: const Text('Artículo')),
+          body: const Center(child: Text('No se encontró el artículo.')));
+    }
     final status = estadoProducto(product);
     final stock = (product['stock_total'] as num).toDouble();
     final unit = product['unit']?.toString() ?? 'pieza';
@@ -169,95 +187,189 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           flexibleSpace: FlexibleSpaceBar(
             background: Padding(
               padding: const EdgeInsets.only(top: 80, bottom: 14),
-              child: Center(child: imagenProducto(product['image_path']?.toString(), size: 100)),
+              child: Center(
+                  child: imagenProducto(product['image_path']?.toString(),
+                      size: 100)),
             ),
           ),
           actions: [
-            IconButton(tooltip: 'Editar artículo', onPressed: () => Navigator.pushNamed(context, '/product-form', arguments: product).then((_) => _reload()), icon: const Icon(Icons.edit_outlined)),
+            IconButton(
+                tooltip: 'Editar artículo',
+                onPressed: () => Navigator.pushNamed(context, '/product-form',
+                        arguments: product)
+                    .then((_) => _reload()),
+                icon: const Icon(Icons.edit_outlined)),
           ],
         ),
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Text(product['category_name'].toString(), style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Colors.green.shade800)),
-              const SizedBox(height: 4),
-              Text(product['name'].toString(), style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-              if ((product['brand']?.toString() ?? '').isNotEmpty) Text(product['brand'].toString()),
-              const SizedBox(height: 12),
-              Wrap(spacing: 8, runSpacing: 8, children: [
-                Chip(avatar: const Icon(Icons.inventory_2_outlined), label: Text('Stock: ${stock.toStringAsFixed(stock % 1 == 0 ? 0 : 2)} $unit')),
-                if (available < stock)
-                  Chip(avatar: const Icon(Icons.check_circle_outline),
-                    label: Text('Vigente: ${available.toStringAsFixed(available % 1 == 0 ? 0 : 2)} $unit')),
-                Chip(avatar: Icon(iconoEstado(status), color: colorEstado(status)), label: Text(status), side: BorderSide(color: colorEstado(status))),
-                Chip(avatar: const Icon(Icons.notifications_active_outlined), label: Text('${product['expiry_alert_days']} días de anticipación')),
-              ]),
-              const SizedBox(height: 12),
-              Row(children: [
-                Expanded(child: FilledButton.icon(onPressed: () => _addLot(), icon: const Icon(Icons.add_box_outlined), label: const Text('Registrar lote'))),
-                const SizedBox(width: 10),
-                Expanded(child: OutlinedButton.icon(onPressed: _consume, icon: const Icon(Icons.remove_circle_outline), label: const Text('Consumir'))),
-              ]),
-            ]),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(product['category_name'].toString(),
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelLarge
+                          ?.copyWith(color: Colors.green.shade800)),
+                  const SizedBox(height: 4),
+                  Text(product['name'].toString(),
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.bold)),
+                  if ((product['brand']?.toString() ?? '').isNotEmpty)
+                    Text(product['brand'].toString()),
+                  const SizedBox(height: 12),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    Chip(
+                        avatar: const Icon(Icons.inventory_2_outlined),
+                        label: Text(
+                            'Stock: ${stock.toStringAsFixed(stock % 1 == 0 ? 0 : 2)} $unit')),
+                    if (available < stock)
+                      Chip(
+                          avatar: const Icon(Icons.check_circle_outline),
+                          label: Text(
+                              'Vigente: ${available.toStringAsFixed(available % 1 == 0 ? 0 : 2)} $unit')),
+                    Chip(
+                        avatar: Icon(iconoEstado(status),
+                            color: colorEstado(status)),
+                        label: Text(status),
+                        side: BorderSide(color: colorEstado(status))),
+                    Chip(
+                        avatar: const Icon(Icons.notifications_active_outlined),
+                        label: Text(
+                            '${product['expiry_alert_days']} días de anticipación')),
+                  ]),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    Expanded(
+                        child: FilledButton.icon(
+                            onPressed: () => _addLot(),
+                            icon: const Icon(Icons.add_box_outlined),
+                            label: const Text('Registrar lote'))),
+                    const SizedBox(width: 10),
+                    Expanded(
+                        child: OutlinedButton.icon(
+                            onPressed: _consume,
+                            icon: const Icon(Icons.remove_circle_outline),
+                            label: const Text('Consumir'))),
+                  ]),
+                ]),
           ),
         ),
         SliverToBoxAdapter(
-          child: Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 4), child: Text('Lotes almacenados', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold))),
+          child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text('Lotes almacenados',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold))),
         ),
         if (_lots.isEmpty)
-          const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(20), child: Text('Todavía no hay lotes. Registra uno para que el artículo tenga existencias.')))
+          const SliverToBoxAdapter(
+              child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text(
+                      'Todavía no hay lotes. Registra uno para que el artículo tenga existencias.')))
         else
-          SliverList(delegate: SliverChildBuilderDelegate((context, index) {
+          SliverList(
+              delegate: SliverChildBuilderDelegate((context, index) {
             final lot = _lots[index];
-            final expired = diasHasta(lot['expiration_date']) < 0 && (lot['quantity_current'] as num).toDouble() > 0;
+            final expired = diasHasta(lot['expiration_date']) < 0 &&
+                (lot['quantity_current'] as num).toDouble() > 0;
             return Card(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
               child: ListTile(
-                leading: CircleAvatar(backgroundColor: expired ? Colors.red.shade100 : Colors.green.shade100, child: Icon(expired ? Icons.warning_amber : Icons.inventory_2_outlined, color: expired ? Colors.red.shade800 : Colors.green.shade800)),
-                title: Text('Lote #${lot['id']} · ${((lot['quantity_current'] as num).toDouble()).toStringAsFixed(2)} $unit'),
-                subtitle: Text('Caduca: ${fechaTexto(lot['expiration_date'])}\nCompra: ${fechaTexto(lot['purchase_date'])} · ${lot['store_name']}'),
+                leading: CircleAvatar(
+                    backgroundColor:
+                        expired ? Colors.red.shade100 : Colors.green.shade100,
+                    child: Icon(
+                        expired
+                            ? Icons.warning_amber
+                            : Icons.inventory_2_outlined,
+                        color: expired
+                            ? Colors.red.shade800
+                            : Colors.green.shade800)),
+                title: Text(
+                    'Lote #${lot['id']} · ${((lot['quantity_current'] as num).toDouble()).toStringAsFixed(2)} $unit'),
+                subtitle: Text(
+                    'Caduca: ${fechaTexto(lot['expiration_date'])}\nCompra: ${fechaTexto(lot['purchase_date'])} · ${lot['store_name']}'),
                 isThreeLine: true,
                 trailing: PopupMenuButton<String>(
-                  onSelected: (value) => value == 'edit' ? _addLot(lot: lot) : _deleteLot(lot),
+                  onSelected: (value) =>
+                      value == 'edit' ? _addLot(lot: lot) : _deleteLot(lot),
                   itemBuilder: (_) => const [
                     PopupMenuItem(value: 'edit', child: Text('Editar lote')),
-                    PopupMenuItem(value: 'delete', child: Text('Eliminar lote')),
+                    PopupMenuItem(
+                        value: 'delete', child: Text('Eliminar lote')),
                   ],
                 ),
               ),
             );
           }, childCount: _lots.length)),
         SliverToBoxAdapter(
-          child: Padding(padding: const EdgeInsets.fromLTRB(16, 18, 16, 4), child: Text('Tiendas donde se ha comprado', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold))),
+          child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 4),
+              child: Text('Tiendas donde se ha comprado',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold))),
         ),
         if (_stores.isEmpty)
-          const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(16, 8, 16, 16), child: Text('Aún no hay compras registradas para este producto.')))
+          const SliverToBoxAdapter(
+              child: Padding(
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: Text(
+                      'Aún no hay compras registradas para este producto.')))
         else
-          SliverList(delegate: SliverChildBuilderDelegate((context, index) {
+          SliverList(
+              delegate: SliverChildBuilderDelegate((context, index) {
             final store = _stores[index];
-            return ListTile(leading: const Icon(Icons.storefront_outlined), title: Text(store['name'].toString()), subtitle: Text('Última compra: ${fechaTexto(store['last_purchase'])}'));
+            return ListTile(
+                leading: const Icon(Icons.storefront_outlined),
+                title: Text(store['name'].toString()),
+                subtitle: Text(
+                    'Última compra: ${fechaTexto(store['last_purchase'])}'));
           }, childCount: _stores.length)),
         SliverToBoxAdapter(
-          child: Padding(padding: const EdgeInsets.fromLTRB(16, 18, 16, 4), child: Text('Historial de compras', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold))),
+          child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 4),
+              child: Text('Historial de compras',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold))),
         ),
         if (_purchaseHistory.isEmpty)
-          const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(16, 8, 16, 28), child: Text('Sin compras registradas.')))
+          const SliverToBoxAdapter(
+              child: Padding(
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, 28),
+                  child: Text('Sin compras registradas.')))
         else
-          SliverList(delegate: SliverChildBuilderDelegate((context, index) {
+          SliverList(
+              delegate: SliverChildBuilderDelegate((context, index) {
             final purchase = _purchaseHistory[index];
-            final total = ((purchase['quantity'] as num).toDouble()) * ((purchase['unit_cost'] as num).toDouble());
+            final total = ((purchase['quantity'] as num).toDouble()) *
+                ((purchase['unit_cost'] as num).toDouble());
             return ListTile(
               leading: const Icon(Icons.receipt_long_outlined),
-              title: Text('${(purchase['quantity'] as num).toString()} $unit · ${monedaFormato.format(total)}'),
-              subtitle: Text('${purchase['store_name']} · ${fechaTexto(purchase['purchased_at'])}'),
+              title: Text(
+                  '${(purchase['quantity'] as num).toString()} $unit · ${monedaFormato.format(total)}'),
+              subtitle: Text(
+                  '${purchase['store_name']} · ${fechaTexto(purchase['purchased_at'])}'),
             );
           }, childCount: _purchaseHistory.length)),
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 18, 16, 4),
             child: Text('Ajustes de inventario',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold)),
           ),
         ),
         if (_adjustments.isEmpty)
@@ -268,14 +380,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ),
           )
         else
-          SliverList(delegate: SliverChildBuilderDelegate((context, index) {
+          SliverList(
+              delegate: SliverChildBuilderDelegate((context, index) {
             final adj = _adjustments[index];
             final oldQty = (adj['quantity_before'] as num).toDouble();
             final newQty = (adj['quantity_after'] as num).toDouble();
             return ListTile(
               leading: const Icon(Icons.edit_note_outlined),
-              title: Text('De ${oldQty.toStringAsFixed(2)} a ${newQty.toStringAsFixed(2)} $unit'),
-              subtitle: Text('${adj['reason']} · ${fechaTexto(adj['adjusted_at'])}'),
+              title: Text(
+                  'De ${oldQty.toStringAsFixed(2)} a ${newQty.toStringAsFixed(2)} $unit'),
+              subtitle:
+                  Text('${adj['reason']} · ${fechaTexto(adj['adjusted_at'])}'),
             );
           }, childCount: _adjustments.length)),
         const SliverToBoxAdapter(child: SizedBox(height: 36)),

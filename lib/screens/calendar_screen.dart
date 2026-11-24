@@ -45,7 +45,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
         if (date != null) parsed[soloFecha(date)] = entry.value;
       }
       if (!mounted) return;
-      setState(() { _events = parsed; _loading = false; _loadError = null; });
+      setState(() {
+        _events = parsed;
+        _loading = false;
+        _loadError = null;
+      });
       if (_openDayFromNotification && _selectedDay != null) {
         _openDayFromNotification = false;
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -54,22 +58,28 @@ class _CalendarScreenState extends State<CalendarScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() { _loading = false; _loadError = 'No se pudo cargar el calendario: $e'; });
+      setState(() {
+        _loading = false;
+        _loadError = 'No se pudo cargar el calendario: $e';
+      });
     }
   }
 
-  List<Map<String, dynamic>> _eventsForDay(DateTime day) => _events[soloFecha(day)] ?? const [];
+  List<Map<String, dynamic>> _eventsForDay(DateTime day) =>
+      _events[soloFecha(day)] ?? const [];
 
   Future<void> _showDay(DateTime day) async {
     final entries = _eventsForDay(day);
     await showDialog<void>(
       context: context,
       useSafeArea: false,
-      builder: (_) => Dialog.fullscreen(child: DayAlertsModal(day: day, events: entries)),
+      builder: (_) =>
+          Dialog.fullscreen(child: DayAlertsModal(day: day, events: entries)),
     );
   }
 
-  Widget _markerBuilder(BuildContext context, DateTime day, List<dynamic> events) {
+  Widget _markerBuilder(
+      BuildContext context, DateTime day, List<dynamic> events) {
     if (events.isEmpty) return const SizedBox.shrink();
     final size = events.length > 12 ? 3.0 : 4.5;
     return Positioned(
@@ -80,14 +90,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
         alignment: WrapAlignment.center,
         spacing: 2,
         runSpacing: 2,
-        children: List.generate(events.length, (index) => Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            color: Colors.deepOrange.shade600,
-            shape: BoxShape.circle,
-          ),
-        )),
+        children: List.generate(
+            events.length,
+            (index) => Container(
+                  width: size,
+                  height: size,
+                  decoration: BoxDecoration(
+                    color: Colors.deepOrange.shade600,
+                    shape: BoxShape.circle,
+                  ),
+                )),
       ),
     );
   }
@@ -99,85 +111,119 @@ class _CalendarScreenState extends State<CalendarScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null
-              ? Center(child: Padding(
+              ? Center(
+                  child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                     Text(_loadError!, textAlign: TextAlign.center),
                     const SizedBox(height: 12),
-                    FilledButton(onPressed: _reload, child: const Text('Reintentar')),
+                    FilledButton(
+                        onPressed: _reload, child: const Text('Reintentar')),
                   ]),
                 ))
-          : RefreshIndicator(
-              onRefresh: _reload,
-              child: CustomScrollView(slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                    child: Card(
+              : RefreshIndicator(
+                  onRefresh: _reload,
+                  child: CustomScrollView(slivers: [
+                    SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: TableCalendar<Map<String, dynamic>>(
-                          locale: 'es_MX',
-                          firstDay: DateTime(2020, 1, 1),
-                          lastDay: DateTime(2100, 12, 31),
-                          focusedDay: _focusedDay,
-                          selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                          eventLoader: _eventsForDay,
-                          startingDayOfWeek: StartingDayOfWeek.monday,
-                          calendarFormat: CalendarFormat.month,
-                          rowHeight: 70,
-                          headerStyle: const HeaderStyle(
-                            formatButtonVisible: false,
-                            titleCentered: true,
-                            leftChevronIcon: Icon(Icons.chevron_left),
-                            rightChevronIcon: Icon(Icons.chevron_right),
+                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                        child: Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: TableCalendar<Map<String, dynamic>>(
+                              locale: 'es_MX',
+                              firstDay: DateTime(2020, 1, 1),
+                              lastDay: DateTime(2100, 12, 31),
+                              focusedDay: _focusedDay,
+                              selectedDayPredicate: (day) =>
+                                  isSameDay(_selectedDay, day),
+                              eventLoader: _eventsForDay,
+                              startingDayOfWeek: StartingDayOfWeek.monday,
+                              calendarFormat: CalendarFormat.month,
+                              rowHeight: 70,
+                              headerStyle: const HeaderStyle(
+                                formatButtonVisible: false,
+                                titleCentered: true,
+                                leftChevronIcon: Icon(Icons.chevron_left),
+                                rightChevronIcon: Icon(Icons.chevron_right),
+                              ),
+                              calendarStyle: CalendarStyle(
+                                todayDecoration: BoxDecoration(
+                                    color: Colors.green.shade300,
+                                    shape: BoxShape.circle),
+                                selectedDecoration: BoxDecoration(
+                                    color: Colors.green.shade800,
+                                    shape: BoxShape.circle),
+                                outsideDaysVisible: false,
+                                markersMaxCount: 0,
+                              ),
+                              calendarBuilders: CalendarBuilders(
+                                  markerBuilder: _markerBuilder),
+                              onDaySelected: (selectedDay, focusedDay) {
+                                setState(() {
+                                  _selectedDay = soloFecha(selectedDay);
+                                  _focusedDay = soloFecha(focusedDay);
+                                });
+                                _showDay(selectedDay);
+                              },
+                              onPageChanged: (focusedDay) => setState(
+                                  () => _focusedDay = soloFecha(focusedDay)),
+                            ),
                           ),
-                          calendarStyle: CalendarStyle(
-                            todayDecoration: BoxDecoration(color: Colors.green.shade300, shape: BoxShape.circle),
-                            selectedDecoration: BoxDecoration(color: Colors.green.shade800, shape: BoxShape.circle),
-                            outsideDaysVisible: false,
-                            markersMaxCount: 0,
-                          ),
-                          calendarBuilders: CalendarBuilders(markerBuilder: _markerBuilder),
-                          onDaySelected: (selectedDay, focusedDay) {
-                            setState(() { _selectedDay = soloFecha(selectedDay); _focusedDay = soloFecha(focusedDay); });
-                            _showDay(selectedDay);
-                          },
-                          onPageChanged: (focusedDay) => setState(() => _focusedDay = soloFecha(focusedDay)),
                         ),
                       ),
                     ),
-                  ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+                        child: Row(children: [
+                          Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                  color: Colors.deepOrange.shade600,
+                                  shape: BoxShape.circle)),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                              child: Text(
+                                  'Cada punto representa un producto con una alerta en esa fecha.')),
+                        ]),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                          child: Text('Alertas de hoy',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold))),
+                    ),
+                    if (_eventsForDay(DateTime.now()).isEmpty)
+                      const SliverToBoxAdapter(
+                          child: Padding(
+                              padding: EdgeInsets.fromLTRB(16, 4, 16, 30),
+                              child: Text(
+                                  'No hay productos con alertas para hoy.')))
+                    else
+                      SliverList(
+                          delegate:
+                              SliverChildBuilderDelegate((context, index) {
+                        final item = _eventsForDay(DateTime.now())[index];
+                        return ListTile(
+                          leading: imagenProducto(
+                              item['image_path']?.toString(),
+                              size: 48),
+                          title: Text(item['name']?.toString() ?? 'Artículo'),
+                          subtitle:
+                              Text(item['event_type']?.toString() ?? 'Alerta'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => _showDay(DateTime.now()),
+                        );
+                      }, childCount: _eventsForDay(DateTime.now()).length)),
+                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                  ]),
                 ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-                    child: Row(children: [
-                      Container(width: 8, height: 8, decoration: BoxDecoration(color: Colors.deepOrange.shade600, shape: BoxShape.circle)),
-                      const SizedBox(width: 8),
-                      const Expanded(child: Text('Cada punto representa un producto con una alerta en esa fecha.')),
-                    ]),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 8), child: Text('Alertas de hoy', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold))),
-                ),
-                if (_eventsForDay(DateTime.now()).isEmpty)
-                  const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(16, 4, 16, 30), child: Text('No hay productos con alertas para hoy.')))
-                else
-                  SliverList(delegate: SliverChildBuilderDelegate((context, index) {
-                    final item = _eventsForDay(DateTime.now())[index];
-                    return ListTile(
-                      leading: imagenProducto(item['image_path']?.toString(), size: 48),
-                      title: Text(item['name']?.toString() ?? 'Artículo'),
-                      subtitle: Text(item['event_type']?.toString() ?? 'Alerta'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => _showDay(DateTime.now()),
-                    );
-                  }, childCount: _eventsForDay(DateTime.now()).length)),
-                const SliverToBoxAdapter(child: SizedBox(height: 24)),
-              ]),
-            ),
     );
   }
 }
@@ -193,29 +239,44 @@ class DayAlertsModal extends StatelessWidget {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text(fechaTexto(fechaIso(day))),
-        leading: IconButton(tooltip: 'Cerrar', onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+        leading: IconButton(
+            tooltip: 'Cerrar',
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.close)),
       ),
       body: CustomScrollView(slivers: [
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Productos de esta fecha', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Productos de esta fecha',
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
               Text(events.length == 1
-                   ? '1 producto con alertas o caducidades registradas.'
-                   : '${events.length} productos con alertas o caducidades registradas.'),
+                  ? '1 producto con alertas o caducidades registradas.'
+                  : '${events.length} productos con alertas o caducidades registradas.'),
             ]),
           ),
         ),
         if (events.isEmpty)
-          const SliverFillRemaining(hasScrollBody: false, child: Center(child: Text('No hay artículos con alertas para esta fecha.')))
+          const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                  child: Text('No hay artículos con alertas para esta fecha.')))
         else
           SliverPadding(
             padding: const EdgeInsets.only(bottom: 24),
-            sliver: SliverList(delegate: SliverChildBuilderDelegate((context, index) {
+            sliver: SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
               final item = events[index];
-              final quantity = item['quantity_alert_total'] ?? item['quantity_current'] ?? item['stock_total'] ?? 0;
+              final quantity = item['quantity_alert_total'] ??
+                  item['quantity_current'] ??
+                  item['stock_total'] ??
+                  0;
               final unit = item['unit']?.toString() ?? 'pieza';
               final eventType = item['event_type']?.toString() ?? 'Caducidad';
               final lotExpiry = item['expiration_date'] ?? item['next_expiry'];
@@ -223,22 +284,42 @@ class DayAlertsModal extends StatelessWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    imagenProducto(item['image_path']?.toString(), size: 78),
-                    const SizedBox(width: 12),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(item['name']?.toString() ?? 'Artículo', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                      if ((item['brand']?.toString() ?? '').isNotEmpty) Text(item['brand'].toString()),
-                      if ((item['category_name']?.toString() ?? '').isNotEmpty) Text('Categoría: ${item['category_name']}'),
-                      const SizedBox(height: 6),
-                      Text('Alerta: $eventType', style: TextStyle(color: Colors.deepOrange.shade800, fontWeight: FontWeight.w600)),
-                      if (lotExpiry != null) Text('Caducidad: ${fechaTexto(lotExpiry)}'),
-                      Text('Cantidad registrada: ${(quantity as num).toDouble().toStringAsFixed((quantity as num).toDouble() % 1 == 0 ? 0 : 2)} $unit'),
-                      if (item['store_name'] != null) Text('Tienda: ${item['store_name']}'),
-                       if ((item['lot_count'] as num? ?? 1) > 1)
-                         Text('Lotes con esta fecha: ${item['lot_count']}'),
-                    ])),
-                  ]),
+                  child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        imagenProducto(item['image_path']?.toString(),
+                            size: 78),
+                        const SizedBox(width: 12),
+                        Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                              Text(item['name']?.toString() ?? 'Artículo',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.bold)),
+                              if ((item['brand']?.toString() ?? '').isNotEmpty)
+                                Text(item['brand'].toString()),
+                              if ((item['category_name']?.toString() ?? '')
+                                  .isNotEmpty)
+                                Text('Categoría: ${item['category_name']}'),
+                              const SizedBox(height: 6),
+                              Text('Alerta: $eventType',
+                                  style: TextStyle(
+                                      color: Colors.deepOrange.shade800,
+                                      fontWeight: FontWeight.w600)),
+                              if (lotExpiry != null)
+                                Text('Caducidad: ${fechaTexto(lotExpiry)}'),
+                              Text(
+                                  'Cantidad registrada: ${(quantity as num).toDouble().toStringAsFixed((quantity).toDouble() % 1 == 0 ? 0 : 2)} $unit'),
+                              if (item['store_name'] != null)
+                                Text('Tienda: ${item['store_name']}'),
+                              if ((item['lot_count'] as num? ?? 1) > 1)
+                                Text(
+                                    'Lotes con esta fecha: ${item['lot_count']}'),
+                            ])),
+                      ]),
                 ),
               );
             }, childCount: events.length)),
